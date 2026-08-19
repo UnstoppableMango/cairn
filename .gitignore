@@ -1,0 +1,5 @@
+/result*
+.envrc
+.direnv/
+bin/
+.claude/*
