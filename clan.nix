@@ -2,5 +2,5 @@
 {
   meta.name = "cairn";
 
-  modules."@UnstoppableMango/rosequartz" = import ./modules/service/rosequartz;
+  modules."@UnstoppableMango/cairn" = import ./modules/service/cairn;
 }

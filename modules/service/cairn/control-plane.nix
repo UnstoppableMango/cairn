@@ -5,7 +5,7 @@
   ...
 }:
 let
-  cfg = config.cluster.rosequartz;
+  cfg = config.cluster.cairn;
 
   nodeIps = map (n: n.ip) cfg.nodes;
   apiserverHosts = [
@@ -31,7 +31,7 @@ let
 
   localNode = lib.findFirst (
     n: n.ip == cfg.advertiseAddress
-  ) (throw "no rosequartz node matches advertiseAddress ${cfg.advertiseAddress}") cfg.nodes;
+  ) (throw "no cairn node matches advertiseAddress ${cfg.advertiseAddress}") cfg.nodes;
 in
 {
   imports = [
@@ -41,7 +41,7 @@ in
     ./flux.nix
   ];
 
-  options.cluster.rosequartz = {
+  options.cluster.cairn = {
     nodes = lib.mkOption {
       type = lib.types.listOf (
         lib.types.submodule {
@@ -124,7 +124,7 @@ in
   };
 
   config = {
-    cluster.rosequartz = {
+    cluster.cairn = {
       etcd.initialCluster = lib.mkDefault etcdPeerEndpoints;
 
       pki.certs = {

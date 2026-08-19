@@ -1,4 +1,4 @@
-# rosequartz
+# cairn
 
 Clan service module for deploying a high-availability Kubernetes cluster on NixOS.
 

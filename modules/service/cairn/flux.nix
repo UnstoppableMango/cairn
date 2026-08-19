@@ -8,7 +8,7 @@
 let
   inherit (pkgs.stdenv.hostPlatform) system;
 
-  cfg = config.cluster.rosequartz;
+  cfg = config.cluster.cairn;
 
   flux = inputs.a2b.legacyPackages.${system}.lib.flux;
 
@@ -29,23 +29,23 @@ let
     name = "flux-system";
     namespace = "flux-system";
     source = "flux-system";
-    path = "./clusters/rosequartz";
+    path = "./clusters/cairn";
     prune = true;
   };
 
   # Bundled the way `flux bootstrap` lays them out, so this directory can be
-  # copied verbatim into the-cluster's clusters/rosequartz/flux-system once
+  # copied verbatim into the-cluster's clusters/cairn/flux-system once
   # the cluster is self-managing. inoculant applies raw manifest files
   # directly, so this is handed to it via `manifestFiles` rather than being
   # re-encoded as Nix attrs.
-  fluxManifests = pkgs.runCommand "rosequartz-flux-manifests" { } ''
+  fluxManifests = pkgs.runCommand "cairn-flux-manifests" { } ''
     mkdir -p $out
     cp ${componentsManifest} $out/gotk-components.yaml
     cat ${sourceManifest} ${kustomizationManifest} > $out/gotk-sync.yaml
   '';
 
   # nixpkgs computes these attrs (coredns, RBAC bootstrap) regardless of
-  # addonManager.enable, which rosequartz keeps false. Hand them to
+  # addonManager.enable, which cairn keeps false. Hand them to
   # inoculant instead of running kube-addon-manager.
   addonManifests =
     config.services.kubernetes.addonManager.addons
@@ -54,12 +54,12 @@ in
 {
   imports = [ inputs.inoculant.nixosModules.default ];
 
-  options.cluster.rosequartz.fluxBootstrap = {
+  options.cluster.cairn.fluxBootstrap = {
     enable = lib.mkEnableOption "coredns + flux bootstrap via inoculant";
   };
 
   config = lib.mkIf cfg.fluxBootstrap.enable {
-    cluster.rosequartz.pki.certs.inoculant-cert = {
+    cluster.cairn.pki.certs.inoculant-cert = {
       cn = "inoculant";
       org = "system:masters";
       profile = "client";
@@ -67,7 +67,7 @@ in
     };
 
     # inoculant's own module generates this cert via nixpkgs' certmgr-based
-    # easyCerts flow, which rosequartz doesn't run (easyCerts = false).
+    # easyCerts flow, which cairn doesn't run (easyCerts = false).
     # Point it at our own cfssl-issued cert instead. `pki.certs` is a plain
     # `attrs`-typed option (not attrsOf submodule), so mkForce only takes
     # effect on the whole assignment — nested `.inoculant = mkForce {...}`

@@ -2,7 +2,7 @@
 
 ## Context
 
-Currently all devices share 192.168.1.0/24 (flat L2). Goal: isolate k8s cluster nodes into a dedicated homelab VLAN so personal traffic and homelab traffic are on separate L2 domains. Doing this now (before rosequartz is deployed) avoids IP changes post-cert-deployment.
+Currently all devices share 192.168.1.0/24 (flat L2). Goal: isolate k8s cluster nodes into a dedicated homelab VLAN so personal traffic and homelab traffic are on separate L2 domains. Doing this now (before cairn is deployed) avoids IP changes post-cert-deployment.
 
 ## VLAN Scheme
 
@@ -21,7 +21,7 @@ No CIDR conflicts: k8s service CIDR defaults to 10.0.0.0/24, pod CIDR to 10.244.
 | pik8s5 | 192.168.1.105 | 10.0.69.105 |
 | pik8s6 | 192.168.1.106 | 10.0.69.106 |
 | agreus | 192.168.1.187 | 10.0.69.187 |
-| rosequartz VIP | 192.168.1.100 | 10.0.69.100 |
+| cairn VIP | 192.168.1.100 | 10.0.69.100 |
 
 ## Phase 1: Switch/Router Config (manual, out-of-band)
 
@@ -84,7 +84,7 @@ the Personal tab):
 | Action | Proto | Source | Destination | Port | Purpose |
 |--------|-------|--------|-------------|------|---------|
 | Pass | TCP | Personal net | HOMELAB net | 22 | SSH to nodes |
-| Pass | TCP | Personal net | 10.0.69.100 (VIP) | 6443 | kubectl to rosequartz API |
+| Pass | TCP | Personal net | 10.0.69.100 (VIP) | 6443 | kubectl to cairn API |
 
 - Storage/Ceph replication traffic stays intra-VLAN 20 and never hits pfSense, so no rule is
   needed for it.
@@ -121,7 +121,7 @@ networking = {
     }];
   };
 };
-cluster.rosequartz = {
+cluster.cairn = {
   interface = "end0";
   advertiseAddress = "10.0.69.104";
   keepalivedPriority = 100;
@@ -152,12 +152,12 @@ networking = {
     prefixLength = 24;
   }];
 };
-cluster.rosequartz.advertiseAddress = "10.0.69.187";
+cluster.cairn.advertiseAddress = "10.0.69.187";
 ```
 Note: check `machines/agreus/facter.json` for the ethernet interface name (likely `enp*` or `eth0`).
 
 ### clan.nix
-Update `deploy.targetHost` and rosequartz settings:
+Update `deploy.targetHost` and cairn settings:
 ```nix
 # pik8s4/5/6 targetHost entries:
 deploy.targetHost = "root@10.0.69.104";  # 105, 106
@@ -165,7 +165,7 @@ deploy.targetHost = "root@10.0.69.104";  # 105, 106
 # agreus:
 deploy.targetHost = "root@10.0.69.187";
 
-# inventory.instances.rosequartz:
+# inventory.instances.cairn:
 roles.control-plane.settings.vip = "10.0.69.100";
 roles.control-plane.machines.pik8s4.settings.ip = "10.0.69.104";
 roles.control-plane.machines.pik8s5.settings.ip = "10.0.69.105";
@@ -175,36 +175,36 @@ roles.worker.machines.agreus.settings.ip = "10.0.69.187";
 
 ## Phase 3: Cert Regen
 
-Some rosequartz certs include node IPs in their SANs. After IP changes, these must be
+Some cairn certs include node IPs in their SANs. After IP changes, these must be
 regenerated. Note two gotchas:
 
 - `clan vars generate`'s positional argument is a **machine** name, not a service instance
-  (`rosequartz` is not a machine).
+  (`cairn` is not a machine).
 - By default clan only generates **missing** vars; existing cert files are skipped. Pass
   `--regenerate`/`-r` to force overwrite.
 
 Only these generators embed IPs and need regenerating (the CA uses interactive prompts and
 must NOT be regenerated, or it will ask for the CA PEM again):
 
-- shared: `rosequartz-apiserver-cert` (VIP + all node IPs)
-- pik8s4/5/6: `rosequartz-etcd-server-cert`, `rosequartz-etcd-peer-cert`, `rosequartz-kubelet-cert`
-- agreus: `rosequartz-worker-kubelet-cert`
+- shared: `cairn-apiserver-cert` (VIP + all node IPs)
+- pik8s4/5/6: `cairn-etcd-server-cert`, `cairn-etcd-peer-cert`, `cairn-kubelet-cert`
+- agreus: `cairn-worker-kubelet-cert`
 
 Regenerate just those (targeting with `-g` avoids re-prompting the CA — dependencies are used,
 not regenerated):
 ```
 # shared apiserver cert (run once, on any control-plane machine)
-clan vars generate -r -g rosequartz-apiserver-cert pik8s4
+clan vars generate -r -g cairn-apiserver-cert pik8s4
 
 # per-machine etcd + kubelet certs
 for m in pik8s4 pik8s5 pik8s6; do
-  clan vars generate -r -g rosequartz-etcd-server-cert "$m"
-  clan vars generate -r -g rosequartz-etcd-peer-cert  "$m"
-  clan vars generate -r -g rosequartz-kubelet-cert    "$m"
+  clan vars generate -r -g cairn-etcd-server-cert "$m"
+  clan vars generate -r -g cairn-etcd-peer-cert  "$m"
+  clan vars generate -r -g cairn-kubelet-cert    "$m"
 done
 
 # agreus worker kubelet cert
-clan vars generate -r -g rosequartz-worker-kubelet-cert agreus
+clan vars generate -r -g cairn-worker-kubelet-cert agreus
 ```
 
 ## Deploy Order (avoid losing SSH access)
