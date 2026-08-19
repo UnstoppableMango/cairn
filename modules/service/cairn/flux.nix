@@ -44,45 +44,46 @@ let
     cat ${sourceManifest} ${kustomizationManifest} > $out/gotk-sync.yaml
   '';
 
-  # nixpkgs computes these attrs (coredns, RBAC bootstrap) regardless of
-  # addonManager.enable, which cairn keeps false. Hand them to
-  # inoculant instead of running kube-addon-manager.
-  addonManifests =
-    config.services.kubernetes.addonManager.addons
-    // config.services.kubernetes.addonManager.bootstrapAddons;
+  # manifestFiles content isn't introspectable by Nix, so the bootstrap init
+  # container's --allow GVK scoping (normally derived from `manifests`) has to
+  # be supplied explicitly. Walk every YAML document in fluxManifests with
+  # yq-go and collect the distinct apiVersion/kind pairs actually present.
+  fluxManifestGVKsJson =
+    pkgs.runCommand "cairn-flux-manifest-gvks.json"
+      {
+        nativeBuildInputs = [
+          pkgs.yq-go
+          pkgs.jq
+        ];
+      }
+      ''
+        yq eval-all -o=json '{"apiVersion": .apiVersion, "kind": .kind}' \
+          ${fluxManifests}/gotk-components.yaml ${fluxManifests}/gotk-sync.yaml \
+          | jq -s 'unique' > $out
+      '';
+
+  fluxManifestGVKs = map (
+    { apiVersion, kind }:
+    let
+      parts = lib.splitString "/" apiVersion;
+    in
+    {
+      group = if lib.length parts == 2 then lib.head parts else "";
+      ver = lib.last parts;
+      inherit kind;
+    }
+  ) (builtins.fromJSON (builtins.readFile fluxManifestGVKsJson));
 in
 {
-  imports = [ inputs.inoculant.nixosModules.default ];
-
-  options.cluster.cairn.fluxBootstrap = {
-    enable = lib.mkEnableOption "coredns + flux bootstrap via inoculant";
+  options.cluster.cairn.flux = {
+    enable = lib.mkEnableOption "flux bootstrap via inoculant";
   };
 
-  config = lib.mkIf cfg.fluxBootstrap.enable {
-    cluster.cairn.pki.certs.inoculant-cert = {
-      cn = "inoculant";
-      org = "system:masters";
-      profile = "client";
-      owner = "kubernetes";
-    };
-
-    # inoculant's own module generates this cert via nixpkgs' certmgr-based
-    # easyCerts flow, which cairn doesn't run (easyCerts = false).
-    # Point it at our own cfssl-issued cert instead. `pki.certs` is a plain
-    # `attrs`-typed option (not attrsOf submodule), so mkForce only takes
-    # effect on the whole assignment — nested `.inoculant = mkForce {...}`
-    # doesn't get unwrapped since inoculant's module also writes this key.
-    services.kubernetes.pki.certs = lib.mkForce {
-      inoculant = {
-        cert = cfg.pki.certs."inoculant-cert".cert;
-        key = cfg.pki.certs."inoculant-cert".key;
-      };
-    };
-
+  config = lib.mkIf cfg.flux.enable {
     services.kubernetes.inoculant = {
       enable = true;
-      manifests = addonManifests;
       manifestFiles = [ fluxManifests ];
+      additionalAllowedGVKs = fluxManifestGVKs;
     };
   };
 }
