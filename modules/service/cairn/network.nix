@@ -5,7 +5,7 @@
   ...
 }:
 let
-  cfg = config.cluster.rosequartz;
+  cfg = config.cluster.cairn;
   rosLib = import ./lib.nix;
 
   flannelKubeconfig = pkgs.writeText "flannel.kubeconfig" (
@@ -35,7 +35,7 @@ in
       })
     ];
 
-    cluster.rosequartz.pki.certs."flannel-cert" = {
+    cluster.cairn.pki.certs."flannel-cert" = {
       cn = "flannel";
       org = "system:masters";
       profile = "client";

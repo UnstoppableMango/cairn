@@ -1,4 +1,4 @@
-# rosequartz — NixOS Kubernetes Service Module
+# cairn — NixOS Kubernetes Service Module
 
 Multi-master HA Kubernetes cluster clan service. Targets Raspberry Pi 4B control-plane nodes (`pik8s4–6`) and an x86_64 worker (`agreus`).
 
@@ -32,13 +32,13 @@ Multi-master HA Kubernetes cluster clan service. Targets Raspberry Pi 4B control
 | `default.nix` | Clan service definition; `control-plane` and `worker` roles |
 | `control-plane.nix` | Full NixOS config for master nodes (apiserver, etcd, keepalived, HAProxy) |
 | `worker.nix` | NixOS config for worker nodes (kubelet only) |
-| `pki.nix` | cfssl-based PKI machinery; `cluster.rosequartz.pki.*` options |
+| `pki.nix` | cfssl-based PKI machinery; `cluster.cairn.pki.*` options |
 | `network.nix` | Flannel CNI setup |
-| `flux.nix` | Optional coredns + Flux bootstrap via `inputs.inoculant` (`cluster.rosequartz.fluxBootstrap.enable`) |
+| `flux.nix` | Optional coredns + Flux bootstrap via `inputs.inoculant` (`cluster.cairn.fluxBootstrap.enable`) |
 
 ## NixOS services.kubernetes Options
 
-`services.kubernetes` is the NixOS wrapper for kube components. Rosequartz uses `easyCerts = false` throughout — all certs are managed by `pki.nix` via clan vars.
+`services.kubernetes` is the NixOS wrapper for kube components. Cairn uses `easyCerts = false` throughout — all certs are managed by `pki.nix` via clan vars.
 
 ### Key options used
 
@@ -120,12 +120,12 @@ Wraps clan vars to produce cfssl-signed certificates. All certs derive from a si
 ### CA flow
 1. `clan vars generate` prompts for `ca-crt` and `ca-key` (multiline/hidden)
 2. CA material stored as clan vars (shared across all machines)
-3. Each cert generator has `dependencies = [ "rosequartz-ca" ]`
+3. Each cert generator has `dependencies = [ "cairn-ca" ]`
 
 ### Cert definition pattern
 
 ```nix
-cluster.rosequartz.pki.certs.<name> = {
+cluster.cairn.pki.certs.<name> = {
   cn = "...";           # Certificate CN
   org = null;           # O field (organization), null if not needed
   hosts = [ ];          # SANs — cfssl auto-detects IP vs DNS
@@ -194,31 +194,31 @@ boot.kernel.sysctl = {
 In `clan.nix`:
 
 ```nix
-modules."@UnstoppableMango/rosequartz" = import ./modules/service/rosequartz;
+modules."@UnstoppableMango/cairn" = import ./modules/service/cairn;
 
-inventory.instances.rosequartz = {
-  module.name = "@UnstoppableMango/rosequartz";
+inventory.instances.cairn = {
+  module.name = "@UnstoppableMango/cairn";
   module.input = "self";
 
   roles.control-plane = {
-    settings = { vip = "192.168.1.100"; clusterName = "rosequartz"; };
+    settings = { vip = "192.168.1.100"; clusterName = "cairn"; };
     machines.pik8s4.settings.ip = "192.168.1.104";
     machines.pik8s5.settings.ip = "192.168.1.105";
     machines.pik8s6.settings.ip = "192.168.1.106";
   };
 
   roles.worker = {
-    settings = { vip = "192.168.1.100"; clusterName = "rosequartz"; };
+    settings = { vip = "192.168.1.100"; clusterName = "cairn"; };
     machines.agreus.settings.ip = "192.168.1.187";
   };
 };
 ```
 
-Machines get the `"rosequartz"` tag via `inventory.machines.<name>.tags`.
+Machines get the `"cairn"` tag via `inventory.machines.<name>.tags`.
 
 ## Cluster Options Reference
 
-All under `cluster.rosequartz.*` (set in the `nixosModule` by the clan service):
+All under `cluster.cairn.*` (set in the `nixosModule` by the clan service):
 
 | Option | Default | Notes |
 |--------|---------|-------|
@@ -241,5 +241,5 @@ All under `cluster.rosequartz.*` (set in the `nixosModule` by the clan service):
 - `localNode` in `control-plane.nix` is derived via `findFirst` matching `advertiseAddress`. If IP mismatches the node list, evaluation throws.
 - `etcd.initialCluster` defaults to all nodes. Override when replacing a member (`initialClusterState = "existing"`).
 - Keepalived `state = "BACKUP"` on all nodes — no `MASTER`; highest `priority` wins. Adjust `keepalivedPriority` per machine in inventory if needed.
-- `flux.nix` bootstraps coredns + Flux via `inputs.inoculant`'s NixOS module. Inoculant's own cert generation relies on nixpkgs' certmgr/easyCerts flow, which rosequartz doesn't run — `flux.nix` force-overrides `services.kubernetes.pki.certs.inoculant` with a rosequartz-issued cert instead. CoreDNS manifests are harvested from `config.services.kubernetes.addonManager.{addons,bootstrapAddons}` (populated by nixpkgs' `addons.dns` module, which is mkDefault-enabled but never applied since `addonManager.enable = false`) rather than hand-written.
+- `flux.nix` bootstraps coredns + Flux via `inputs.inoculant`'s NixOS module. Inoculant's own cert generation relies on nixpkgs' certmgr/easyCerts flow, which cairn doesn't run — `flux.nix` force-overrides `services.kubernetes.pki.certs.inoculant` with a cairn-issued cert instead. CoreDNS manifests are harvested from `config.services.kubernetes.addonManager.{addons,bootstrapAddons}` (populated by nixpkgs' `addons.dns` module, which is mkDefault-enabled but never applied since `addonManager.enable = false`) rather than hand-written.
 - Shared certs (`share = true`) are generated once and deployed to all machines. Per-machine certs (`share = false`) are generated separately per machine.

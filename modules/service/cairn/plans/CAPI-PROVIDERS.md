@@ -2,7 +2,7 @@
 
 ## Context
 
-Rosequartz is the CAPI **management cluster** (pik8s4-6 control-plane, agreus worker).
+Cairn is the CAPI **management cluster** (pik8s4-6 control-plane, agreus worker).
 The **workload cluster** it will manage has this hardware:
 
 | Role | Nodes | BMC |
@@ -17,7 +17,7 @@ The **workload cluster** it will manage has this hardware:
 
 k0smotron is a CAPI provider (CNCF project, Mirantis) with two modes:
 
-- **Hosted CP**: k0s control-plane runs as pods inside the management cluster (rosequartz). Eliminates physical CP nodes.
+- **Hosted CP**: k0s control-plane runs as pods inside the management cluster (cairn). Eliminates physical CP nodes.
 - **Remote CP**: k0s control-plane installed on actual machines via SSH. Preserves Pi-as-CP architecture.
 - **RemoteMachine**: CAPI infra provider that provisions any pre-existing Linux machine via SSH. Installs k0s worker agent.
 
@@ -31,7 +31,7 @@ For this cluster: **Remote CP** on pik8s1-3 + **RemoteMachine** workers for zeus
 
 **Rook-Ceph disk safety.** k0smotron does not touch disk layout — it only installs the k0s agent binary and a systemd unit. Ceph OSD disks on zeus/gaea remain raw and untouched. This is cleaner than any PXE-based provider, where reprovisioning workflows must explicitly avoid OSD disks.
 
-**No new infrastructure components.** No tink-server, no boots DHCP proxy, no metadata server, no Ironic, no MAAS PostgreSQL backend. Just cert-manager + CAPI core + k0smotron controllers running in rosequartz.
+**No new infrastructure components.** No tink-server, no boots DHCP proxy, no metadata server, no Ironic, no MAAS PostgreSQL backend. Just cert-manager + CAPI core + k0smotron controllers running in cairn.
 
 **Preserves NixOS on workload nodes.** k0smotron is OS-agnostic — nodes can continue to run NixOS managed by clan. k0smotron only manages the k0s process, not the OS.
 
@@ -44,7 +44,7 @@ For this cluster: **Remote CP** on pik8s1-3 + **RemoteMachine** workers for zeus
 ### Architecture
 
 ```
-rosequartz (management cluster)
+cairn (management cluster)
 ├── CAPI core controllers
 ├── k0smotron controllers
 │   ├── k0smotron CP pods (if hosted mode chosen)
@@ -93,7 +93,7 @@ Components that run on the management cluster:
 
 ### Why it was not chosen now
 
-Operational overhead without day-one benefit. The Pi nodes are already running NixOS and don't need reprovisioning. Adding tink-server, boots (DHCP proxy), hegel, and rufio to rosequartz is significant complexity when SSH provisioning via k0smotron achieves the same result with no new infrastructure.
+Operational overhead without day-one benefit. The Pi nodes are already running NixOS and don't need reprovisioning. Adding tink-server, boots (DHCP proxy), hegel, and rufio to cairn is significant complexity when SSH provisioning via k0smotron achieves the same result with no new infrastructure.
 
 The DHCP proxy (`boots`) must run with `hostNetwork: true` and coordinate with pfSense to avoid DHCP conflicts — adds operational surface area.
 

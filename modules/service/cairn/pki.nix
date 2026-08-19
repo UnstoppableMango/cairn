@@ -6,7 +6,7 @@
 }:
 let
   topConfig = config;
-  cfg = config.cluster.rosequartz;
+  cfg = config.cluster.cairn;
 
   # ─── Config (JSON) ───────────────────────────────────────────────────────────
 
@@ -63,8 +63,8 @@ let
   gencert = profile: csrFile: ''
     set -euo pipefail
     cfssl gencert \
-      -ca "$in/rosequartz-ca/crt" \
-      -ca-key "$in/rosequartz-ca/key" \
+      -ca "$in/cairn-ca/crt" \
+      -ca-key "$in/cairn-ca/key" \
       -config ${signingConfigFile} \
       -profile ${profile} \
       ${csrFile} | cfssljson -bare cert
@@ -76,13 +76,13 @@ let
   mkGenerator = name: cert: {
     inherit (cert) share;
     runtimeInputs = [ pkgs.cfssl ];
-    dependencies = [ "rosequartz-ca" ];
+    dependencies = [ "cairn-ca" ];
     files."crt".secret = false;
     files."key" = {
       secret = true;
       owner = cert.owner;
     };
-    script = gencert cert.profile (mkCsrFile "rosequartz-${name}" cert);
+    script = gencert cert.profile (mkCsrFile "cairn-${name}" cert);
   };
 
   caGenerator = {
@@ -113,7 +113,7 @@ in
 {
   ###### interface
 
-  options.cluster.rosequartz.pki = {
+  options.cluster.cairn.pki = {
     certValidityDays = lib.mkOption {
       type = lib.types.int;
       default = 3650;
@@ -122,7 +122,7 @@ in
 
     certs = lib.mkOption {
       default = { };
-      description = "Certificate definitions; each entry produces a clan var generator named rosequartz-<name>.";
+      description = "Certificate definitions; each entry produces a clan var generator named cairn-<name>.";
       type = lib.types.attrsOf (
         lib.types.submodule (
           { name, ... }: {
@@ -171,8 +171,8 @@ in
             };
 
             config = {
-              cert = topConfig.clan.core.vars.generators."rosequartz-${name}".files."crt".path;
-              key = topConfig.clan.core.vars.generators."rosequartz-${name}".files."key".path;
+              cert = topConfig.clan.core.vars.generators."cairn-${name}".files."crt".path;
+              key = topConfig.clan.core.vars.generators."cairn-${name}".files."key".path;
             };
           }
         )
@@ -190,13 +190,12 @@ in
 
   config = {
     clan.core.vars.generators = {
-      "rosequartz-ca" = caGenerator;
+      "cairn-ca" = caGenerator;
     }
     // lib.mapAttrs' (
-      name: cert: lib.nameValuePair "rosequartz-${name}" (mkGenerator name cert)
+      name: cert: lib.nameValuePair "cairn-${name}" (mkGenerator name cert)
     ) cfg.pki.certs;
 
-    cluster.rosequartz.pki.ca.cert =
-      topConfig.clan.core.vars.generators."rosequartz-ca".files."crt".path;
+    cluster.cairn.pki.ca.cert = topConfig.clan.core.vars.generators."cairn-ca".files."crt".path;
   };
 }

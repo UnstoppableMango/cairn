@@ -1,6 +1,6 @@
 {
   _class = "clan.service";
-  manifest.name = "rosequartz";
+  manifest.name = "cairn";
   manifest.readme = builtins.readFile ./README.md;
 
   roles.control-plane = {
@@ -35,7 +35,7 @@
       {
         nixosModule = {
           imports = [ ./control-plane.nix ];
-          cluster.rosequartz = {
+          cluster.cairn = {
             inherit (settings) vip clusterName;
             nodes = lib.mapAttrsToList (name: m: {
               inherit name;
@@ -71,7 +71,7 @@
       {
         nixosModule = {
           imports = [ ./worker.nix ];
-          cluster.rosequartz = {
+          cluster.cairn = {
             inherit (controlPlane) vip clusterName;
             advertiseAddress = settings.ip;
           };

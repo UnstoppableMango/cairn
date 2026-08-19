@@ -4,13 +4,13 @@
   ...
 }:
 let
-  cfg = config.cluster.rosequartz;
+  cfg = config.cluster.cairn;
   rosLib = import ./lib.nix;
   kubeconfigPath = "/etc/kubernetes/admin.kubeconfig";
 in
 {
   config = {
-    cluster.rosequartz.pki.certs.admin-cert = {
+    cluster.cairn.pki.certs.admin-cert = {
       cn = "kubernetes-admin";
       org = "system:masters";
       profile = "client";

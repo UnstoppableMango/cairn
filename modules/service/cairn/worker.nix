@@ -4,7 +4,7 @@
   ...
 }:
 let
-  cfg = config.cluster.rosequartz;
+  cfg = config.cluster.cairn;
 in
 {
   imports = [
@@ -13,7 +13,7 @@ in
     ./pki.nix
   ];
 
-  options.cluster.rosequartz = {
+  options.cluster.cairn = {
     vip = lib.mkOption {
       type = lib.types.str;
       description = "Keepalived virtual IP (VIP) for the cluster.";
@@ -31,7 +31,7 @@ in
   };
 
   config = {
-    cluster.rosequartz.pki.certs = {
+    cluster.cairn.pki.certs = {
       worker-kubelet-cert = {
         cn = "system:node:${config.networking.hostName}";
         org = "system:nodes";
