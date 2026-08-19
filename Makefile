@@ -1,6 +1,3 @@
-build:
-	nix build .#
-
 update:
 	nix flake update
 
