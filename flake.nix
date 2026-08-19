@@ -14,13 +14,32 @@
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    clan-core = {
+      url = "https://git.clan.lol/clan/clan-core/archive/26.05.tar.gz";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "treefmt-nix";
+      };
+    };
   };
 
   outputs =
     inputs@{ flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = import inputs.systems;
-      imports = [ inputs.treefmt-nix.flakeModule ];
+      imports = [
+        inputs.treefmt-nix.flakeModule
+        inputs.flake-parts.flakeModules.modules
+        inputs.clan-core.flakeModules.default
+      ];
+
+      clan = {
+        imports = [ (import ./clan.nix { inherit inputs; }) ];
+        specialArgs = { inherit inputs; };
+      };
 
       perSystem =
         { pkgs, ... }:
