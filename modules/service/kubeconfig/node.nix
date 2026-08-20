@@ -2,25 +2,22 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 let
   cfg = config.cluster.cairn.kubeconfig;
   pki = config.cluster.cairn.pki;
-  kubeconfigLib = import ../lib/kubeconfig.nix;
+  kubeconfigLib = inputs.self.lib.kubeconfig;
   kubeconfigPath = "/etc/kubernetes/admin.kubeconfig";
 
   apiServerURL = "https://${cfg.vip}:6443";
 in
 {
-  options.cluster.cairn.kubeconfig =
-    let
-      commonOptions = import ../lib/options.nix { inherit lib; };
-    in
-    {
-      vip = commonOptions.vip;
-      clusterName = commonOptions.clusterName;
-    };
+  options.cluster.cairn.kubeconfig = {
+    vip = inputs.self.lib.options.vip;
+    clusterName = inputs.self.lib.options.clusterName;
+  };
 
   config = {
     cluster.cairn.pki.certs.admin-cert = {

@@ -1,3 +1,4 @@
+{ inputs }:
 {
   _class = "clan.service";
   manifest.name = "kubelet";
@@ -36,8 +37,8 @@
           description = "IP address of this worker node.";
         };
 
-        options.vip = (import ../lib/options.nix { inherit lib; }).vip;
-        options.clusterName = (import ../lib/options.nix { inherit lib; }).clusterName;
+        options.vip = inputs.self.lib.options.vip;
+        options.clusterName = inputs.self.lib.options.clusterName;
       };
 
     perInstance =

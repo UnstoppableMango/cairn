@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 let
@@ -38,7 +39,7 @@ in
       description = "IP address this node advertises for etcd client/peer traffic.";
     };
 
-    clusterName = (import ../lib/options.nix { inherit lib; }).clusterName;
+    clusterName = inputs.self.lib.options.clusterName;
 
     initialClusterState = lib.mkOption {
       type = lib.types.enum [

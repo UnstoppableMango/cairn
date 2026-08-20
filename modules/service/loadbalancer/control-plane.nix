@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  inputs,
   ...
 }:
 let
@@ -8,7 +9,7 @@ let
 in
 {
   options.cluster.cairn.loadbalancer = {
-    vip = (import ../lib/options.nix { inherit lib; }).vip;
+    vip = inputs.self.lib.options.vip;
 
     interface = lib.mkOption {
       type = lib.types.str;

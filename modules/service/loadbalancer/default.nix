@@ -1,3 +1,4 @@
+{ inputs }:
 { clanLib, ... }:
 {
   _class = "clan.service";
@@ -12,7 +13,7 @@
     interface =
       { lib, ... }:
       {
-        options.vip = (import ../lib/options.nix { inherit lib; }).vip;
+        options.vip = inputs.self.lib.options.vip;
 
         options.interface = lib.mkOption {
           type = lib.types.str;

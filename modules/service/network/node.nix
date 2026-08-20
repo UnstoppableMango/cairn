@@ -2,12 +2,13 @@
   config,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 let
   cfg = config.cluster.cairn.network;
   pki = config.cluster.cairn.pki;
-  kubeconfigLib = import ../lib/kubeconfig.nix;
+  kubeconfigLib = inputs.self.lib.kubeconfig;
 
   apiServerURL = "https://${cfg.vip}:6443";
 
@@ -24,14 +25,10 @@ let
   );
 in
 {
-  options.cluster.cairn.network =
-    let
-      commonOptions = import ../lib/options.nix { inherit lib; };
-    in
-    {
-      vip = commonOptions.vip;
-      clusterName = commonOptions.clusterName;
-    };
+  options.cluster.cairn.network = {
+    vip = inputs.self.lib.options.vip;
+    clusterName = inputs.self.lib.options.clusterName;
+  };
 
   config = {
     # nixpkgs' flannel-0.28.6 fixed-output derivation has a stale hash for the
