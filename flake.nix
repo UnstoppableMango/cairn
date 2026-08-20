@@ -59,7 +59,12 @@
       flake.lib = import ./lib { inherit (inputs.nixpkgs) lib; };
 
       clan = {
-        imports = [ (import ./clan.nix { inherit inputs; lib = inputs.nixpkgs.lib; }) ];
+        imports = [
+          (import ./clan.nix {
+            inherit inputs;
+            lib = inputs.nixpkgs.lib;
+          })
+        ];
         specialArgs = { inherit inputs; };
       };
 
