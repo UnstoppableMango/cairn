@@ -41,6 +41,7 @@ Roles categorize machines by their function within a service. Two common pattern
 - **client-server** — hierarchical; clients unlikely to communicate with each other
 
 Each role has:
+
 - `description` — explains what the role does
 - `interface.options` — configurable settings exposed to inventory
 - `perInstance` — NixOS config applied per-instance-per-machine
@@ -262,8 +263,8 @@ modules."@UnstoppableMango/myservice" = lib.importApply ./modules/service/myserv
 ## Checklist: New Service
 
 1. Create `modules/service/<name>/default.nix` with `_class = "clan.service"` and `manifest.name`
-2. Define at least one role with `perInstance.nixosModule`
-3. Register in `clan.nix`: `modules."@UnstoppableMango/<name>" = import ./modules/service/<name>;`
-4. Add inventory instance in `clan.nix` with `module.input = "self"` and role assignments
-5. Tag machines appropriately in `inventory.machines` or list them explicitly
-6. Run `make check` to verify
+1. Define at least one role with `perInstance.nixosModule`
+1. Register in `clan.nix`: `modules."@UnstoppableMango/<name>" = import ./modules/service/<name>;`
+1. Add inventory instance in `clan.nix` with `module.input = "self"` and role assignments
+1. Tag machines appropriately in `inventory.machines` or list them explicitly
+1. Run `make check` to verify

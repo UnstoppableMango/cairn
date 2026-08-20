@@ -14,6 +14,7 @@ Combines `services.kubernetes` (apiserver, etcd, controller-manager, scheduler, 
 ## How it works
 
 Each control-plane machine runs:
+
 - A local etcd member, forming a quorum with peer mTLS
 - A local apiserver on a configurable internal port
 - HAProxy, which listens on 6443 and load-balances to all local apiservers

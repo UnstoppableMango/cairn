@@ -73,7 +73,18 @@
 
           treefmt.programs = {
             nixfmt.enable = true;
+            mdformat.enable = true;
+            yamlfmt.enable = true;
+            jsonfmt.enable = true;
+            mbake.enable = true;
           };
+
+          treefmt.programs.mbake.settings.ensure_final_newline = true;
+
+          treefmt.settings.formatter.mdformat.excludes = [
+            ".agents/skills/**"
+            ".claude/skills/**"
+          ];
         };
     };
 }

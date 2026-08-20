@@ -28,13 +28,14 @@ No CIDR conflicts: k8s service CIDR defaults to 10.0.0.0/24, pod CIDR to 10.244.
 ### pfSense SBC
 
 #### Interface assignment
+
 1. `Interfaces > Assignments > VLANs > Add`: Parent = Unifi uplink NIC, VLAN Tag = `20`,
    Description = `Homelab`.
-2. `Interfaces > Assignments`: assign the new VLAN, then open it and:
+1. `Interfaces > Assignments`: assign the new VLAN, then open it and:
    - Enable interface, name it `HOMELAB`.
    - IPv4 Configuration Type = `Static IPv4`, address `10.0.69.1/24`.
    - IPv6 Configuration Type = `None` (this VLAN is IPv4-only; leave RA/DHCPv6 off).
-3. (Optional) `Services > DHCP Server > HOMELAB`: enable, range e.g. `10.0.69.150–.199`.
+1. (Optional) `Services > DHCP Server > HOMELAB`: enable, range e.g. `10.0.69.150–.199`.
    Nodes use static IPs outside this range, so DHCP is only for convenience.
 
 #### Firewall rules — important gotchas
@@ -67,6 +68,7 @@ is empty and has an implicit *deny-all*, so all traffic is dropped until you add
 | 7 | Pass | any | HOMELAB net | any | — | Homelab → internet |
 
 Notes:
+
 - Rules 5/6 overlap; a single **block to an `RFC1918` alias** (defining 10.0.0.0/8,
   172.16.0.0/12, 192.168.0.0/16) covers both. Exclude `HOMELAB net` from that alias, or add a
   pass rule for intra-VLAN 20 traffic above it, so Ceph/k8s replication inside 10.0.69.0/24 is
@@ -91,20 +93,23 @@ the Personal tab):
 - Remember to **Apply Changes** after editing rules; pfSense stages them until applied.
 
 ### Unifi 24p (via UniFi Controller)
+
 1. Create Network: "Homelab", VLAN 20
-2. pik8s4/5/6 ports: set to VLAN 20 untagged (access port)
-3. agreus port: set to VLAN 20 untagged (access port)
-4. pfSense uplink port: trunk — tagged VLAN 1 + VLAN 20
-5. GS108T uplink port: trunk — tagged VLAN 1 + VLAN 20
+1. pik8s4/5/6 ports: set to VLAN 20 untagged (access port)
+1. agreus port: set to VLAN 20 untagged (access port)
+1. pfSense uplink port: trunk — tagged VLAN 1 + VLAN 20
+1. GS108T uplink port: trunk — tagged VLAN 1 + VLAN 20
 
 ### GS108T
+
 1. Uplink port to Unifi: 802.1Q trunk, pass VLAN 1 (tagged) + VLAN 20 (tagged)
-2. hades (workstation) port: PVID 1, VLAN 1 untagged (access)
-3. Other ports: VLAN 1 untagged unless they need homelab access
+1. hades (workstation) port: PVID 1, VLAN 1 untagged (access)
+1. Other ports: VLAN 1 untagged unless they need homelab access
 
 ## Phase 2: NixOS Config Changes
 
 ### machines/pik8s4/configuration.nix
+
 ```nix
 networking = {
   hostName = "pik8s4";
@@ -131,13 +136,17 @@ cluster.cairn = {
 ```
 
 ### machines/pik8s5/configuration.nix
+
 Same pattern: IP 10.0.69.105, priority 90.
 
 ### machines/pik8s6/configuration.nix
+
 Same pattern: IP 10.0.69.106, priority 80.
 
 ### machines/agreus/configuration.nix
+
 - Add static IP config for the homelab interface (currently no interface stanza):
+
 ```nix
 networking = {
   hostName = "agreus";
@@ -154,10 +163,13 @@ networking = {
 };
 cluster.cairn.advertiseAddress = "10.0.69.187";
 ```
+
 Note: check `machines/agreus/facter.json` for the ethernet interface name (likely `enp*` or `eth0`).
 
 ### clan.nix
+
 Update `deploy.targetHost` and cairn settings:
+
 ```nix
 # pik8s4/5/6 targetHost entries:
 deploy.targetHost = "root@10.0.69.104";  # 105, 106
@@ -192,6 +204,7 @@ must NOT be regenerated, or it will ask for the CA PEM again):
 
 Regenerate just those (targeting with `-g` avoids re-prompting the CA — dependencies are used,
 not regenerated):
+
 ```
 # shared apiserver cert (run once, on any control-plane machine)
 clan vars generate -r -g cairn-apiserver-cert pik8s4
@@ -212,15 +225,16 @@ clan vars generate -r -g cairn-worker-kubelet-cert agreus
 Use `nixos-rebuild boot` (not switch) to stage configs, then change switch port, then reboot:
 
 For each node:
+
 1. `nixos-rebuild boot --target-host root@<old-ip> --flake .#<machine>` — stages new config, no immediate effect
-2. Change Unifi port to VLAN 20 in controller
-3. Reboot node — comes up with new IP on correct VLAN
+1. Change Unifi port to VLAN 20 in controller
+1. Reboot node — comes up with new IP on correct VLAN
 
 Verify after each node before proceeding to next. Deploy pik8s4 → pik8s5 → pik8s6 → agreus.
 
 ## Verification
 
 1. `ping 10.0.69.104` from hades — tests routing through pfSense
-2. `ssh root@10.0.69.104` — confirms SSH accessible from personal VLAN
-3. `curl -k https://10.0.69.100:6443` — confirms VIP reachable after full cluster deploy
-4. `nix flake check` — confirm config builds clean
+1. `ssh root@10.0.69.104` — confirms SSH accessible from personal VLAN
+1. `curl -k https://10.0.69.100:6443` — confirms VIP reachable after full cluster deploy
+1. `nix flake check` — confirm config builds clean
