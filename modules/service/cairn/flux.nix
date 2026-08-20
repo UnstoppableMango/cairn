@@ -21,15 +21,15 @@ let
   sourceManifest = flux.createSourceGit {
     name = "flux-system";
     namespace = "flux-system";
-    url = "https://github.com/UnstoppableMango/the-cluster";
-    branch = "main";
+    url = cfg.flux.url;
+    branch = cfg.flux.branch;
   };
 
   kustomizationManifest = flux.createKustomization {
     name = "flux-system";
     namespace = "flux-system";
     source = "flux-system";
-    path = "./clusters/cairn";
+    path = cfg.flux.path;
     prune = true;
   };
 
@@ -77,6 +77,24 @@ in
 {
   options.cluster.cairn.flux = {
     enable = lib.mkEnableOption "flux bootstrap via inoculant";
+
+    url = lib.mkOption {
+      type = lib.types.str;
+      default = "https://github.com/UnstoppableMango/the-cluster";
+      description = "Git URL of the GitOps repository Flux syncs from.";
+    };
+
+    branch = lib.mkOption {
+      type = lib.types.str;
+      default = "main";
+      description = "Branch of the GitOps repository to track.";
+    };
+
+    path = lib.mkOption {
+      type = lib.types.str;
+      default = "./clusters/cairn";
+      description = "Path within the GitOps repository that Flux's root Kustomization targets.";
+    };
   };
 
   config = lib.mkIf cfg.flux.enable {

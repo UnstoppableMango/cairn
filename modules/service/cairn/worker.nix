@@ -19,6 +19,12 @@ in
       description = "Keepalived virtual IP (VIP) for the cluster.";
     };
 
+    apiServerURL = lib.mkOption {
+      type = lib.types.str;
+      default = "https://${cfg.vip}:6443";
+      description = "External URL for the apiserver, fronted by HAProxy at the VIP.";
+    };
+
     clusterName = lib.mkOption {
       type = lib.types.str;
       description = "Cluster name; used in TLS certificate subject names.";
@@ -55,7 +61,7 @@ in
     services.kubernetes = {
       roles = [ "node" ];
       masterAddress = cfg.vip;
-      apiserverAddress = "https://${cfg.vip}:6443";
+      apiserverAddress = cfg.apiServerURL;
       easyCerts = false;
       caFile = cfg.pki.ca.cert;
 

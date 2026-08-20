@@ -11,7 +11,7 @@ let
   flannelKubeconfig = pkgs.writeText "flannel.kubeconfig" (
     rosLib.mkKubeconfig {
       ca = cfg.pki.ca.cert;
-      server = "https://${cfg.vip}:6443";
+      server = cfg.apiServerURL;
       clusterName = cfg.clusterName;
       userName = "flannel";
       contextName = "flannel@${cfg.clusterName}";
@@ -21,7 +21,13 @@ let
   );
 in
 {
-  config = {
+  options.cluster.cairn.network.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = true;
+    description = "Whether to configure Flannel pod networking on this node.";
+  };
+
+  config = lib.mkIf cfg.network.enable {
     # nixpkgs' flannel-0.28.6 fixed-output derivation has a stale hash for the
     # GitHub archive tarball (upstream archive content drifted). Pin to the
     # actually-observed hash until nixpkgs picks up a fix.
