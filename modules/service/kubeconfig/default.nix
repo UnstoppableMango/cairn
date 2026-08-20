@@ -8,16 +8,12 @@
 
     interface =
       { lib, ... }:
+      let
+        commonOptions = import ../lib/options.nix { inherit lib; };
+      in
       {
-        options.vip = lib.mkOption {
-          type = lib.types.str;
-          description = "Cluster-external VIP fronting the apiserver.";
-        };
-
-        options.clusterName = lib.mkOption {
-          type = lib.types.str;
-          description = "Cluster name; used in the kubeconfig context.";
-        };
+        options.vip = commonOptions.vip;
+        options.clusterName = commonOptions.clusterName;
       };
 
     perInstance =

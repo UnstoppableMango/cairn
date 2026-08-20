@@ -38,10 +38,7 @@ in
       description = "IP address this node advertises for etcd client/peer traffic.";
     };
 
-    clusterName = lib.mkOption {
-      type = lib.types.str;
-      description = "Cluster name; used as the etcd initial cluster token.";
-    };
+    clusterName = (import ../lib/options.nix { inherit lib; }).clusterName;
 
     initialClusterState = lib.mkOption {
       type = lib.types.enum [

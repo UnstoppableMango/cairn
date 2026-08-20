@@ -19,7 +19,7 @@
       { settings, ... }:
       {
         nixosModule = {
-          imports = [ ./control-plane.nix ];
+          imports = [ ./common.nix ];
           cluster.cairn.kubelet.advertiseAddress = settings.ip;
         };
       };
@@ -36,15 +36,8 @@
           description = "IP address of this worker node.";
         };
 
-        options.vip = lib.mkOption {
-          type = lib.types.str;
-          description = "Cluster-external VIP fronting the apiserver.";
-        };
-
-        options.clusterName = lib.mkOption {
-          type = lib.types.str;
-          description = "Cluster name; used in TLS certificate subject names.";
-        };
+        options.vip = (import ../lib/options.nix { inherit lib; }).vip;
+        options.clusterName = (import ../lib/options.nix { inherit lib; }).clusterName;
       };
 
     perInstance =

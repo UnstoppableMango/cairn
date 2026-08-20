@@ -12,10 +12,7 @@
     interface =
       { lib, ... }:
       {
-        options.vip = lib.mkOption {
-          type = lib.types.str;
-          description = "Keepalived virtual IP (VIP) for the cluster.";
-        };
+        options.vip = (import ../lib/options.nix { inherit lib; }).vip;
 
         options.interface = lib.mkOption {
           type = lib.types.str;
@@ -43,23 +40,14 @@
         ...
       }:
       let
-        apiserverHosts = lib.concatMap (e: e.endpoints.hosts) (
+        # HAProxy just needs a dial string per backend; no need to split "ip:port" apart.
+        apiserverBackends = lib.concatMap (e: e.endpoints.hosts) (
           lib.attrValues (
             clanLib.selectExports (
               scope: scope.serviceName == "apiserver" && scope.roleName == "control-plane"
             ) exports
           )
         );
-        apiserverNodes = map (
-          host:
-          let
-            parts = lib.splitString ":" host;
-          in
-          {
-            ip = lib.head parts;
-            port = lib.toIntBase10 (lib.last parts);
-          }
-        ) apiserverHosts;
       in
       {
         nixosModule = {
@@ -71,7 +59,7 @@
               virtualRouterId
               keepalivedPriority
               ;
-            inherit apiserverNodes;
+            inherit apiserverBackends;
           };
         };
       };

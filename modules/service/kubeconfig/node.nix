@@ -7,23 +7,20 @@
 let
   cfg = config.cluster.cairn.kubeconfig;
   pki = config.cluster.cairn.pki;
-  kubeconfigLib = import ./lib.nix;
+  kubeconfigLib = import ../lib/kubeconfig.nix;
   kubeconfigPath = "/etc/kubernetes/admin.kubeconfig";
 
   apiServerURL = "https://${cfg.vip}:6443";
 in
 {
-  options.cluster.cairn.kubeconfig = {
-    vip = lib.mkOption {
-      type = lib.types.str;
-      description = "Cluster-external VIP fronting the apiserver.";
+  options.cluster.cairn.kubeconfig =
+    let
+      commonOptions = import ../lib/options.nix { inherit lib; };
+    in
+    {
+      vip = commonOptions.vip;
+      clusterName = commonOptions.clusterName;
     };
-
-    clusterName = lib.mkOption {
-      type = lib.types.str;
-      description = "Cluster name; used in the kubeconfig context.";
-    };
-  };
 
   config = {
     cluster.cairn.pki.certs.admin-cert = {
