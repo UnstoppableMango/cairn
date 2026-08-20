@@ -1,3 +1,4 @@
+{ inputs }:
 { clanLib, ... }:
 {
   _class = "clan.service";
@@ -12,17 +13,14 @@
 
     interface =
       { lib, ... }:
-      let
-        commonOptions = import ../lib/options.nix { inherit lib; };
-      in
       {
         options.ip = lib.mkOption {
           type = lib.types.str;
           description = "IP address this apiserver node advertises.";
         };
 
-        options.vip = commonOptions.vip;
-        options.clusterName = commonOptions.clusterName;
+        options.vip = inputs.self.lib.options.vip;
+        options.clusterName = inputs.self.lib.options.clusterName;
 
         options.apiserverPort = lib.mkOption {
           type = lib.types.port;

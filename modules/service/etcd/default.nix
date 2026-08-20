@@ -1,3 +1,4 @@
+{ inputs }:
 {
   _class = "clan.service";
   manifest.name = "etcd";
@@ -19,7 +20,7 @@
           description = "IP address of this etcd member.";
         };
 
-        options.clusterName = (import ../lib/options.nix { inherit lib; }).clusterName;
+        options.clusterName = inputs.self.lib.options.clusterName;
       };
 
     perInstance =

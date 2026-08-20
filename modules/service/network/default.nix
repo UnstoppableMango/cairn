@@ -1,3 +1,4 @@
+{ inputs }:
 {
   _class = "clan.service";
   manifest.name = "network";
@@ -8,12 +9,9 @@
 
     interface =
       { lib, ... }:
-      let
-        commonOptions = import ../lib/options.nix { inherit lib; };
-      in
       {
-        options.vip = commonOptions.vip;
-        options.clusterName = commonOptions.clusterName;
+        options.vip = inputs.self.lib.options.vip;
+        options.clusterName = inputs.self.lib.options.clusterName;
       };
 
     perInstance =
