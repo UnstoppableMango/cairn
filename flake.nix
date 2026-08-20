@@ -1,5 +1,9 @@
 {
-  description = "A Nix flake";
+  description = "A Kubernetes distribution built on Nix and clan";
+
+  nixConfig = {
+    allow-import-from-derivation = false;
+  };
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
@@ -48,22 +52,22 @@
 
   outputs =
     inputs@{ flake-parts, ... }:
+    let
+      inherit (inputs.nixpkgs) lib;
+    in
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = import inputs.systems;
-      imports = [
-        inputs.treefmt-nix.flakeModule
-        inputs.flake-parts.flakeModules.modules
-        inputs.clan-core.flakeModules.default
+      imports = with inputs; [
+        treefmt-nix.flakeModule
+        flake-parts.flakeModules.modules
+        clan-core.flakeModules.default
       ];
 
-      flake.lib = import ./lib { inherit (inputs.nixpkgs) lib; };
+      flake.lib = import ./lib { inherit lib; };
 
       clan = {
         imports = [
-          (import ./clan.nix {
-            inherit inputs;
-            lib = inputs.nixpkgs.lib;
-          })
+          (import ./clan.nix { inherit inputs lib; })
         ];
         specialArgs = { inherit inputs; };
       };
@@ -78,20 +82,23 @@
             ];
           };
 
-          treefmt.programs = {
-            nixfmt.enable = true;
-            mdformat.enable = true;
-            yamlfmt.enable = true;
-            jsonfmt.enable = true;
-            mbake.enable = true;
+          treefmt = {
+            programs = {
+              nixfmt.enable = true;
+              mdformat.enable = true;
+              yamlfmt.enable = true;
+              jsonfmt.enable = true;
+              mbake = {
+                enable = true;
+                settings.ensure_final_newline = true;
+              };
+            };
+
+            settings.formatter.mdformat.excludes = [
+              ".agents/skills/**"
+              ".claude/skills/**"
+            ];
           };
-
-          treefmt.programs.mbake.settings.ensure_final_newline = true;
-
-          treefmt.settings.formatter.mdformat.excludes = [
-            ".agents/skills/**"
-            ".claude/skills/**"
-          ];
         };
     };
 }
