@@ -8,7 +8,7 @@
 let
   inherit (pkgs.stdenv.hostPlatform) system;
 
-  cfg = config.cluster.cairn;
+  cfg = config.cluster.cairn.flux;
 
   flux = inputs.a2b.legacyPackages.${system}.lib.flux;
 
@@ -21,15 +21,15 @@ let
   sourceManifest = flux.createSourceGit {
     name = "flux-system";
     namespace = "flux-system";
-    url = cfg.flux.url;
-    branch = cfg.flux.branch;
+    url = cfg.url;
+    branch = cfg.branch;
   };
 
   kustomizationManifest = flux.createKustomization {
     name = "flux-system";
     namespace = "flux-system";
     source = "flux-system";
-    path = cfg.flux.path;
+    path = cfg.path;
     prune = true;
   };
 
@@ -76,8 +76,6 @@ let
 in
 {
   options.cluster.cairn.flux = {
-    enable = lib.mkEnableOption "flux bootstrap via inoculant";
-
     url = lib.mkOption {
       type = lib.types.str;
       default = "https://github.com/UnstoppableMango/the-cluster";
@@ -97,7 +95,7 @@ in
     };
   };
 
-  config = lib.mkIf cfg.flux.enable {
+  config = {
     services.kubernetes.inoculant = {
       enable = true;
       manifestFiles = [ fluxManifests ];

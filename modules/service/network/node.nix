@@ -5,29 +5,38 @@
   ...
 }:
 let
-  cfg = config.cluster.cairn;
-  rosLib = import ./lib.nix;
+  cfg = config.cluster.cairn.network;
+  pki = config.cluster.cairn.pki;
+  kubeconfigLib = import ../kubeconfig/lib.nix;
+
+  apiServerURL = "https://${cfg.vip}:6443";
 
   flannelKubeconfig = pkgs.writeText "flannel.kubeconfig" (
-    rosLib.mkKubeconfig {
-      ca = cfg.pki.ca.cert;
-      server = cfg.apiServerURL;
+    kubeconfigLib.mkKubeconfig {
+      ca = pki.ca.cert;
+      server = apiServerURL;
       clusterName = cfg.clusterName;
       userName = "flannel";
       contextName = "flannel@${cfg.clusterName}";
-      certFile = cfg.pki.certs."flannel-cert".cert;
-      keyFile = cfg.pki.certs."flannel-cert".key;
+      certFile = pki.certs."flannel-cert".cert;
+      keyFile = pki.certs."flannel-cert".key;
     }
   );
 in
 {
-  options.cluster.cairn.network.enable = lib.mkOption {
-    type = lib.types.bool;
-    default = true;
-    description = "Whether to configure Flannel pod networking on this node.";
+  options.cluster.cairn.network = {
+    vip = lib.mkOption {
+      type = lib.types.str;
+      description = "Cluster-external VIP fronting the apiserver.";
+    };
+
+    clusterName = lib.mkOption {
+      type = lib.types.str;
+      description = "Cluster name; used in the flannel kubeconfig context.";
+    };
   };
 
-  config = lib.mkIf cfg.network.enable {
+  config = {
     # nixpkgs' flannel-0.28.6 fixed-output derivation has a stale hash for the
     # GitHub archive tarball (upstream archive content drifted). Pin to the
     # actually-observed hash until nixpkgs picks up a fix.
@@ -79,5 +88,13 @@ in
       8285 # flannel udp
       8472 # flannel VXLAN
     ];
+
+    boot.kernelModules = [ "br_netfilter" ];
+
+    boot.kernel.sysctl = {
+      "net.bridge.bridge-nf-call-iptables" = lib.mkDefault 1;
+      "net.bridge.bridge-nf-call-ip6tables" = lib.mkDefault 1;
+      "net.ipv4.ip_forward" = lib.mkDefault 1;
+    };
   };
 }

@@ -1,0 +1,54 @@
+{
+  config,
+  lib,
+  ...
+}:
+let
+  cfg = config.cluster.cairn.kubelet;
+  pki = config.cluster.cairn.pki;
+in
+{
+  options.cluster.cairn.kubelet.advertiseAddress = lib.mkOption {
+    type = lib.types.str;
+    description = "IP address this node advertises for kubelet.";
+  };
+
+  config = {
+    cluster.cairn.pki.certs = {
+      kubelet-cert = {
+        cn = "system:node:${config.networking.hostName}";
+        org = "system:nodes";
+        hosts = [ cfg.advertiseAddress ];
+        share = false;
+        profile = "peer";
+        owner = "root";
+      };
+      kubelet-client-cert = {
+        cn = "system:node:${config.networking.hostName}";
+        org = "system:nodes";
+        share = false;
+        profile = "client";
+        owner = "root";
+      };
+    };
+
+    services.kubernetes.kubelet = {
+      # clan sets meta.domain = "thecluster.io", which causes networking.fqdnOrHostName
+      # to return "pik8s4.thecluster.io". The NixOS kubelet default uses fqdnOrHostName,
+      # but cert CNs are generated from the short hostname ("system:node:pik8s4").
+      # Node Authorizer rejects: cert subject "pik8s4" cannot read node "pik8s4.thecluster.io".
+      hostname = config.networking.hostName;
+      clientCaFile = pki.ca.cert;
+      tlsCertFile = pki.certs."kubelet-cert".cert;
+      tlsKeyFile = pki.certs."kubelet-cert".key;
+      kubeconfig = {
+        certFile = pki.certs."kubelet-client-cert".cert;
+        keyFile = pki.certs."kubelet-client-cert".key;
+      };
+    };
+
+    networking.firewall.allowedTCPPorts = [
+      10250 # kubelet API
+    ];
+  };
+}
