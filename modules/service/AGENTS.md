@@ -1,6 +1,6 @@
 # Clan Service Authoring Guide
 
-Reference: https://clan.lol/docs/25.11/guides/services/community/
+Reference: https://clan.lol/docs/26.05/guides/services/community/
 
 ## What is a Clan Service
 
@@ -31,7 +31,7 @@ Services in this repo live under `modules/service/<name>/` and are registered in
 | `manifest.name` | string | Unique name, used in error messages |
 | `roles` | attrset | Must be non-empty |
 
-Optional manifest fields: `manifest.description`, `manifest.readme` (use `builtins.readFile ./README.md`), `manifest.categories`.
+Optional manifest fields: `manifest.description`, `manifest.readme` (use `builtins.readFile ./README.md`), `manifest.categories`, `manifest.exports.out`/`manifest.exports.inputs` (declares which export modules this service produces/consumes, see [Exports](#exports-cross-machine-data-sharing)), `manifest.constraints.maxInstances`, `manifest.constraints.roles.<role>.{minMachines,maxMachines}` (validated by `clan vars check` / CLI checks).
 
 ## Roles
 
@@ -68,18 +68,23 @@ roles.client = {
 | | `perInstance` | `perMachine` |
 |---|---|---|
 | Runs | Once per (machine, instance) pair | Once per machine across all instances |
-| Context | `instanceName`, `settings`, `machine`, `roles` | `instances`, `machine` |
+| Context | `instanceName`, `settings`, `machine`, `roles`, `extendSettings`, `mkExports` | `instances`, `machine`, `mkExports` |
 | Use for | Instance-specific config | Global/shared config across instances |
+
+Both return an attrset that may set `nixosModule`, `darwinModule` (for nix-darwin machines), and `exports`.
 
 ```nix
 # perInstance as a function (gives access to context)
 perInstance = { instanceName, settings, roles, machine, ... }: {
   nixosModule = { config, ... }: { /* ... */ };
+  darwinModule = { config, ... }: { /* ... */ };  # optional, for aarch64-darwin machines
 };
 
 # perInstance as an attrset (simpler, no context needed)
 perInstance.nixosModule = ./role.nix;
 ```
+
+Prefer `roles.<roleName>.machines.<machineName>.settings` (via the `roles` argument) over `roles.<roleName>.settings` when you need a specific machine's settings — the latter is deprecated and will be removed.
 
 ## Registration in clan.nix
 
@@ -98,7 +103,7 @@ perInstance.nixosModule = ./role.nix;
 }
 ```
 
-`module.input` defaults to `"clan-core"` if omitted. For local modules, always set `module.input = "self"`.
+`module.input` defaults to `null` (looked up among clan-core's built-in modules) if omitted. For local modules, always set `module.input = "self"`.
 
 ## Tags
 
@@ -183,9 +188,12 @@ Run `clan vars generate` to execute generators. Secret files deploy to `/run/sec
 ## Exports (Cross-Machine Data Sharing)
 
 Exports share structured data between machines/instances. Experimental but available.
+Declare what a service produces/consumes via `manifest.exports.out`/`manifest.exports.inputs` (list of export-module names, e.g. `[ "networking" "peer" ]`).
 
 ```nix
 { clanLib, ... }: {
+  manifest.exports.out = [ "myserver" ];
+
   roles.server.perInstance = { mkExports, ... }: {
     exports = mkExports {
       server.address.plain = "192.168.1.100";
@@ -193,17 +201,18 @@ Exports share structured data between machines/instances. Experimental but avail
     nixosModule = { ... }: { };
   };
 
-  roles.client.perInstance = { exports, ... }: {
+  roles.client.perInstance = { exports, clanLib, ... }: {
     nixosModule = { ... }: {
       services.myclient.server =
-        (clanLib.selectExports { service = "myservice"; role = "server"; } exports)
+        (clanLib.getExport { serviceName = "myservice"; roleName = "server"; } exports)
         .address.plain;
     };
   };
 }
 ```
 
-`clanLib.selectExports` filters by `service`, `instance`, `role`, `machine` (all optional, default wildcard).
+- `clanLib.getExport { serviceName?, instanceName?, roleName?, machineName? } exports` — fetch a single export by scope; throws if it isn't found.
+- `clanLib.selectExports (scope: scope.serviceName == "myservice") exports` — filter exports with a **predicate function** over `{ serviceName, instanceName, roleName, machineName }` (all present as `""` when not part of the scope). `selectExports (_: true) exports` returns everything.
 
 ## File Splitting Pattern
 
