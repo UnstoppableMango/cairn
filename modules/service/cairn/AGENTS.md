@@ -34,7 +34,9 @@ Multi-master HA Kubernetes cluster clan service. Targets Raspberry Pi 4B control
 | `worker.nix` | NixOS config for worker nodes (kubelet only) |
 | `pki.nix` | cfssl-based PKI machinery; `cluster.cairn.pki.*` options |
 | `network.nix` | Flannel CNI setup |
-| `flux.nix` | Optional coredns + Flux bootstrap via `inputs.inoculant` (`cluster.cairn.fluxBootstrap.enable`) |
+| `coredns.nix` | Optional CoreDNS bootstrap via inoculant (`cluster.cairn.coredns.enable`) |
+| `flux.nix` | Optional Flux bootstrap via inoculant (`cluster.cairn.flux.enable`) |
+| `inoculant.nix` | Imports `inputs.inoculant`; sets `services.kubernetes.inoculant.clusterAdmin` from `admin-cert` |
 
 ## NixOS services.kubernetes Options
 
@@ -241,5 +243,5 @@ All under `cluster.cairn.*` (set in the `nixosModule` by the clan service):
 - `localNode` in `control-plane.nix` is derived via `findFirst` matching `advertiseAddress`. If IP mismatches the node list, evaluation throws.
 - `etcd.initialCluster` defaults to all nodes. Override when replacing a member (`initialClusterState = "existing"`).
 - Keepalived `state = "BACKUP"` on all nodes — no `MASTER`; highest `priority` wins. Adjust `keepalivedPriority` per machine in inventory if needed.
-- `flux.nix` bootstraps coredns + Flux via `inputs.inoculant`'s NixOS module. Inoculant's own cert generation relies on nixpkgs' certmgr/easyCerts flow, which cairn doesn't run — `flux.nix` force-overrides `services.kubernetes.pki.certs.inoculant` with a cairn-issued cert instead. CoreDNS manifests are harvested from `config.services.kubernetes.addonManager.{addons,bootstrapAddons}` (populated by nixpkgs' `addons.dns` module, which is mkDefault-enabled but never applied since `addonManager.enable = false`) rather than hand-written.
+- `coredns.nix`, `flux.nix`, and `inoculant.nix` together bootstrap the cluster via `inputs.inoculant`'s NixOS module. `inoculant.nix` sets `services.kubernetes.inoculant.clusterAdmin` by reusing the existing `admin-cert` from `kubeconfig.nix` (inoculant's own cert generation relies on nixpkgs' certmgr/easyCerts flow, which cairn doesn't run). CoreDNS manifests (`coredns.nix`) are harvested from `config.services.kubernetes.addonManager.addons` (populated by nixpkgs' `addons.dns` module, which is mkDefault-enabled but never applied since `addonManager.enable = false`) rather than hand-written. Flux manifests (`flux.nix`) are handed to inoculant via `manifestFiles`, with `additionalAllowedGVKs` computed by walking the generated YAML with `yq`/`jq` since `manifestFiles` content isn't introspectable by Nix.
 - Shared certs (`share = true`) are generated once and deployed to all machines. Per-machine certs (`share = false`) are generated separately per machine.

@@ -38,7 +38,9 @@ in
     ./kubeconfig.nix
     ./network.nix
     ./pki.nix
+    ./coredns.nix
     ./flux.nix
+    ./inoculant.nix
   ];
 
   options.cluster.cairn = {
@@ -57,6 +59,12 @@ in
     vip = lib.mkOption {
       type = lib.types.str;
       description = "Keepalived virtual IP (VIP) for the cluster.";
+    };
+
+    apiServerURL = lib.mkOption {
+      type = lib.types.str;
+      default = "https://${cfg.vip}:6443";
+      description = "External URL for the apiserver, fronted by HAProxy at the VIP.";
     };
 
     apiserverPort = lib.mkOption {
@@ -200,7 +208,7 @@ in
     services.kubernetes = {
       roles = [ "master" ];
       masterAddress = cfg.vip;
-      apiserverAddress = "https://${cfg.vip}:6443";
+      apiserverAddress = cfg.apiServerURL;
       easyCerts = false;
       caFile = cfg.pki.ca.cert;
       addonManager.enable = false;

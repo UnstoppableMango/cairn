@@ -66,7 +66,11 @@
         ...
       }:
       let
-        controlPlane = (lib.head (lib.attrValues roles.control-plane.machines)).settings;
+        controlPlane =
+          (lib.throwIfNot (roles.control-plane.machines != { })
+            "cairn worker role requires at least one control-plane machine in the same instance"
+            (lib.head (lib.attrValues roles.control-plane.machines))
+          ).settings;
       in
       {
         nixosModule = {
