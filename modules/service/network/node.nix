@@ -7,7 +7,7 @@
 let
   cfg = config.cluster.cairn.network;
   pki = config.cluster.cairn.pki;
-  kubeconfigLib = import ../kubeconfig/lib.nix;
+  kubeconfigLib = import ../lib/kubeconfig.nix;
 
   apiServerURL = "https://${cfg.vip}:6443";
 
@@ -24,17 +24,14 @@ let
   );
 in
 {
-  options.cluster.cairn.network = {
-    vip = lib.mkOption {
-      type = lib.types.str;
-      description = "Cluster-external VIP fronting the apiserver.";
+  options.cluster.cairn.network =
+    let
+      commonOptions = import ../lib/options.nix { inherit lib; };
+    in
+    {
+      vip = commonOptions.vip;
+      clusterName = commonOptions.clusterName;
     };
-
-    clusterName = lib.mkOption {
-      type = lib.types.str;
-      description = "Cluster name; used in the flannel kubeconfig context.";
-    };
-  };
 
   config = {
     # nixpkgs' flannel-0.28.6 fixed-output derivation has a stale hash for the

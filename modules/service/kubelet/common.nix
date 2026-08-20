@@ -10,7 +10,7 @@ in
 {
   options.cluster.cairn.kubelet.advertiseAddress = lib.mkOption {
     type = lib.types.str;
-    description = "IP address this node advertises for kubelet.";
+    description = "IP address this node advertises for kubelet (included in the kubelet server certificate's SAN).";
   };
 
   config = {

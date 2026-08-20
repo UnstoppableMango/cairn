@@ -19,10 +19,7 @@
           description = "IP address of this etcd member.";
         };
 
-        options.clusterName = lib.mkOption {
-          type = lib.types.str;
-          description = "Cluster name; used as the etcd initial cluster token.";
-        };
+        options.clusterName = (import ../lib/options.nix { inherit lib; }).clusterName;
       };
 
     perInstance =

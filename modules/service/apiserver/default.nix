@@ -12,21 +12,17 @@
 
     interface =
       { lib, ... }:
+      let
+        commonOptions = import ../lib/options.nix { inherit lib; };
+      in
       {
         options.ip = lib.mkOption {
           type = lib.types.str;
           description = "IP address this apiserver node advertises.";
         };
 
-        options.vip = lib.mkOption {
-          type = lib.types.str;
-          description = "Cluster-external VIP fronting the apiserver (owned by the loadbalancer service).";
-        };
-
-        options.clusterName = lib.mkOption {
-          type = lib.types.str;
-          description = "Cluster name; used in TLS certificate subject names.";
-        };
+        options.vip = commonOptions.vip;
+        options.clusterName = commonOptions.clusterName;
 
         options.apiserverPort = lib.mkOption {
           type = lib.types.port;
@@ -58,7 +54,7 @@
         );
       in
       {
-        # loadbalancer parses "ip:port" back out of endpoints.hosts.
+        # loadbalancer consumes these as opaque HAProxy dial targets ("ip:port").
         exports = mkExports {
           endpoints.hosts = [ "${settings.ip}:${toString settings.apiserverPort}" ];
         };

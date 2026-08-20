@@ -8,10 +8,7 @@ let
 in
 {
   options.cluster.cairn.loadbalancer = {
-    vip = lib.mkOption {
-      type = lib.types.str;
-      description = "Keepalived virtual IP (VIP) for the cluster.";
-    };
+    vip = (import ../lib/options.nix { inherit lib; }).vip;
 
     interface = lib.mkOption {
       type = lib.types.str;
@@ -30,16 +27,9 @@ in
       description = "VRRP priority — highest wins the VIP.";
     };
 
-    apiserverNodes = lib.mkOption {
-      type = lib.types.listOf (
-        lib.types.submodule {
-          options = {
-            ip = lib.mkOption { type = lib.types.str; };
-            port = lib.mkOption { type = lib.types.port; };
-          };
-        }
-      );
-      description = "apiserver backends (ip, port), from the apiserver service's exports.";
+    apiserverBackends = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      description = "apiserver backend dial targets (\"ip:port\"), from the apiserver service's exports.";
     };
   };
 
@@ -85,8 +75,8 @@ in
           balance roundrobin
           option tcp-check
           ${lib.concatMapStringsSep "\n          " (
-            n: "server ${n.ip} ${n.ip}:${toString n.port} check"
-          ) cfg.apiserverNodes}
+            backend: "server ${backend} ${backend} check"
+          ) cfg.apiserverBackends}
       '';
     };
 
