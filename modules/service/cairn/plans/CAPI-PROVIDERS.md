@@ -73,7 +73,7 @@ k0smotron `RemoteMachine` spec references a `Secret` with `address`, `user`, `pr
 - https://docs.k0smotron.io/v1.1.2/capi-remote/
 - https://k0smotron.io/
 
----
+______________________________________________________________________
 
 ## Backburner: Tinkerbell (CAPT)
 
@@ -110,9 +110,9 @@ Tinkerbell also requires OS images to be baked and hosted. A NixOS workflow woul
 Tinkerbell and k0smotron are not mutually exclusive. Tinkerbell handles OS lifecycle (provisioning, reprovisioning); k0smotron handles k8s lifecycle (joining/leaving cluster). Workflow:
 
 1. Tinkerbell provisions bare-metal node → NixOS image written to disk
-2. Node reboots into NixOS, SSH comes up
-3. k0smotron `RemoteMachine` SSHs in, installs k0s agent
-4. Node joins workload cluster
+1. Node reboots into NixOS, SSH comes up
+1. k0smotron `RemoteMachine` SSHs in, installs k0s agent
+1. Node joins workload cluster
 
 ### Rufio for zeus/gaea BMC (independent of CAPT)
 

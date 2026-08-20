@@ -22,16 +22,17 @@ pfSense
 ## Order of Operations
 
 1. **GS108T** — trunk + hades NIC2 port (NIC1 stays up throughout)
-2. **Unifi** — create network, trunk ports first, then access ports
-3. **GS724Tv4** — trunk + move zeus/gaea ports last
+1. **Unifi** — create network, trunk ports first, then access ports
+1. **GS724Tv4** — trunk + move zeus/gaea ports last
 
----
+______________________________________________________________________
 
 ## GS108T
 
 Web UI: `http://<gs108t-ip>` → admin login
 
 **Identify ports first:**
+
 - Port A = uplink to Unifi 24p
 - Port B = hades NIC1 (existing)
 - Port C = hades NIC2 (plug cable in before configuring)
@@ -79,13 +80,14 @@ Same page → select VLAN 20
 
 Apply. No reboot needed.
 
----
+______________________________________________________________________
 
 ## Unifi Switch
 
 Access: UniFi Controller UI
 
 **Identify ports first:**
+
 - Port P = pfSense uplink
 - Port G1 = GS108T uplink
 - Port G2 = GS724Tv4 uplink
@@ -106,10 +108,12 @@ Access: UniFi Controller UI
 `Devices > [switch] > Ports`
 
 **Access ports** (pik8s4, pik8s5, pik8s6, agreus):
+
 - Native Network: `Homelab`
 - Tagged Networks: _(none)_
 
 **Trunk ports** (pfSense uplink, GS108T uplink, GS724Tv4 uplink):
+
 - Native Network: `Default`
 - Tagged Networks: `Homelab`
 
@@ -117,13 +121,14 @@ Access: UniFi Controller UI
 
 Provision switch. Brief traffic blip expected.
 
----
+______________________________________________________________________
 
 ## GS724Tv4
 
 Web UI: `http://<gs724t-ip>` → admin login
 
 **Identify ports first:**
+
 - Port U = uplink to Unifi 24p
 - Port Z = zeus
 - Port G = gaea
@@ -170,7 +175,7 @@ Select VLAN 20:
 
 Apply.
 
----
+______________________________________________________________________
 
 ## Verification
 

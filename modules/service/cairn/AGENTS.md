@@ -120,9 +120,10 @@ services.etcd = {
 Wraps clan vars to produce cfssl-signed certificates. All certs derive from a single CA injected via `clan vars generate` prompts.
 
 ### CA flow
+
 1. `clan vars generate` prompts for `ca-crt` and `ca-key` (multiline/hidden)
-2. CA material stored as clan vars (shared across all machines)
-3. Each cert generator has `dependencies = [ "cairn-ca" ]`
+1. CA material stored as clan vars (shared across all machines)
+1. Each cert generator has `dependencies = [ "cairn-ca" ]`
 
 ### Cert definition pattern
 
@@ -140,7 +141,7 @@ cluster.cairn.pki.certs.<name> = {
 };
 ```
 
-Shared certs (same keypair on all nodes): `sa`, `apiserver-cert`, `etcd-client-cert`, `admin-cert`, `controller-manager-cert`, `scheduler-cert`, `flannel-cert`.  
+Shared certs (same keypair on all nodes): `sa`, `apiserver-cert`, `etcd-client-cert`, `admin-cert`, `controller-manager-cert`, `scheduler-cert`, `flannel-cert`.\
 Per-machine certs (`share = false`): `etcd-server-cert`, `etcd-peer-cert`, `kubelet-cert`, `kubelet-client-cert`.
 
 ### cfssl profiles
