@@ -4,11 +4,14 @@
   ...
 }:
 let
-  cfg = config.cluster.cairn;
+  cfg = config.cluster.cairn.coredns;
 in
 {
   options.cluster.cairn.coredns = {
-    enable = lib.mkEnableOption "coredns bootstrap via inoculant";
+    nodeNames = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      description = "Hostnames of control-plane nodes CoreDNS may be scheduled onto.";
+    };
 
     manifests = lib.mkOption {
       type = lib.types.attrsOf lib.types.attrs;
@@ -30,7 +33,7 @@ in
                 {
                   key = "kubernetes.io/hostname";
                   operator = "In";
-                  values = map (n: n.name) cfg.nodes;
+                  values = cfg.nodeNames;
                 }
               ];
             }
@@ -70,14 +73,14 @@ in
     };
   };
 
-  config = lib.mkIf cfg.coredns.enable {
+  config = {
     services.kubernetes.kubelet.seedDockerImages = [
       config.services.kubernetes.addons.dns.corednsImage
     ];
 
     services.kubernetes.inoculant = {
       enable = true;
-      manifests = cfg.coredns.manifests;
+      manifests = cfg.manifests;
     };
   };
 }

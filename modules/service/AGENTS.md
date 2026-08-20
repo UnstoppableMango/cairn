@@ -254,11 +254,23 @@ modules."@UnstoppableMango/myservice" = lib.importApply ./modules/service/myserv
 
 ## Existing Services in This Repo
 
+The cairn cluster is composed from these per-component services rather than
+one monolithic service. See each service's own `README.md` for what it owns
+and which other services it depends on being co-assigned to the same
+machine.
+
 | Module | Roles | Notes |
 |--------|-------|-------|
-| `@UnstoppableMango/k3s` | `control-plane`, `worker` | Uses vars for k3s token; common config in `k3s.nix` |
-| `@UnstoppableMango/pi` | `pi4b` | Hardware config for Raspberry Pi 4B |
-| `@UnstoppableMango/trouble` | `server` | Minimal debug tooling service |
+| `@UnstoppableMango/pki` | `node` | CA + cfssl cert-generator machinery; consumers declare their own cert specs |
+| `@UnstoppableMango/etcd` | `member` | etcd cluster member; exports client URLs |
+| `@UnstoppableMango/apiserver` | `control-plane` | kube-apiserver, controller-manager, scheduler; consumes etcd exports, exports node info |
+| `@UnstoppableMango/kubelet` | `control-plane`, `worker` | kubelet, either alongside apiserver or standalone on workers |
+| `@UnstoppableMango/loadbalancer` | `control-plane` | keepalived VIP + HAProxy fronting the apiserver cluster |
+| `@UnstoppableMango/network` | `node` | Flannel CNI + kernel bridge/forwarding prerequisites |
+| `@UnstoppableMango/kubeconfig` | `node` | Installs the admin kubeconfig + kubectl |
+| `@UnstoppableMango/inoculant` | `node` | Shared inoculant `clusterAdmin` wiring for coredns/flux |
+| `@UnstoppableMango/coredns` | `control-plane` | Optional CoreDNS bootstrap via inoculant |
+| `@UnstoppableMango/flux` | `control-plane` | Optional Flux GitOps bootstrap via inoculant |
 
 ## Checklist: New Service
 
