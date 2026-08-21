@@ -34,6 +34,7 @@ CI (`.github/workflows/ci.yml`) runs only `nix flake check` on push to `main` an
 ### Repo layout
 
 - `clan.nix` — the flake's clan module registry (`modules."@UnstoppableMango/<name>"`) and (in `perSystem`) the single-node VM test's inventory wiring. This is the top-level list of what services exist.
+- `flakeModules/default.nix` — the `flake.flakeModules.default` output: a flake-parts module consumer flakes import (`imports = [ inputs.cairn.flakeModules.default ];`) to get clan-core's flake module and a default `systems` list wired in without declaring `clan-core` as their own input.
 - `modules/service/<name>/` — one clan service per Kubernetes cluster component (`default.nix`, role files, `README.md`).
 - `lib/` — small Nix helper library exposed as `flake.lib` (`mkKubeconfig` for generating kubeconfig YAML, shared `options.nix` option definitions like `vip`/`clusterName` reused across service interfaces).
 - `examples/single-node/` — a full, runnable consumer flake (its own `flake.nix` + `inventory.nix`) demonstrating a minimal one-machine cluster, plus a NixOS VM test (`tests/vm/default.nix`) that boots it and smoke-tests `kubectl`.

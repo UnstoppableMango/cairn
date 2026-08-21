@@ -30,7 +30,8 @@ Substitute your own machine names, IPs, and cluster name throughout.
 
 ## Scaffold a Consumer Flake
 
-Create a new repo for your cluster and add cairn plus `clan-core` as flake inputs.
+Create a new repo for your cluster and add cairn as a flake input.
+Cairn exposes a `flake.flakeModules.default` flake-parts module that wires in clan-core for you, so you don't need to declare `clan-core` as a separate input or import its flake module yourself:
 
 ```nix
 # flake.nix
@@ -40,17 +41,12 @@ Create a new repo for your cluster and add cairn plus `clan-core` as flake input
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     cairn.url = "github:UnstoppableMango/cairn";
-    clan-core = {
-      url = "https://git.clan.lol/clan/clan-core/archive/26.05.tar.gz";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
-    inputs@{ flake-parts, clan-core, ... }:
+    inputs@{ flake-parts, cairn, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [ "x86_64-linux" "aarch64-linux" ];
-      imports = [ clan-core.flakeModules.default ];
+      imports = [ cairn.flakeModules.default ];
 
       clan = {
         specialArgs = { inherit inputs; };
@@ -60,8 +56,14 @@ Create a new repo for your cluster and add cairn plus `clan-core` as flake input
 }
 ```
 
+`cairn.flakeModules.default` also sets a sensible default `systems` list; override it yourself if you need something different.
+If you want your NixOS machine modules or inventory to reference your own flake inputs (`inputs.<foo>`), keep setting `clan.specialArgs = { inherit inputs; };` yourself as shown above, cairn doesn't do this for you.
+
 Every `inventory.instances.<name>.module.input` you write against cairn's modules must be `"cairn"`, the name given to the flake input above.
 This is different from cairn's own internal examples (`modules/service/AGENTS.md`), which use `module.input = "self"` because those examples live inside cairn's own flake.
+
+Note that `clan-core` is not required as a top-level input here for the flake to evaluate or for `clan` CLI commands like `machines list`/`install`/`update` to work.
+The one exception is the `clan --template clan-core#<name>` shorthand (e.g. `clan flakes create --template clan-core#new-machine`), which resolves against a literal `clan-core` input; add it as its own input yourself if you rely on that shorthand.
 
 ## Declare the Inventory
 

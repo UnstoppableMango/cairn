@@ -395,10 +395,6 @@
     "root": {
       "inputs": {
         "cairn": "cairn",
-        "clan-core": [
-          "cairn",
-          "clan-core"
-        ],
         "flake-parts": [
           "cairn",
           "flake-parts"
