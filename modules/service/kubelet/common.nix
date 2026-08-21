@@ -33,10 +33,10 @@ in
     };
 
     services.kubernetes.kubelet = {
-      # clan sets meta.domain = "thecluster.io", which causes networking.fqdnOrHostName
-      # to return "pik8s4.thecluster.io". The NixOS kubelet default uses fqdnOrHostName,
-      # but cert CNs are generated from the short hostname ("system:node:pik8s4").
-      # Node Authorizer rejects: cert subject "pik8s4" cannot read node "pik8s4.thecluster.io".
+      # clan sets meta.domain, which causes networking.fqdnOrHostName to return
+      # e.g. "node1.example.com". The NixOS kubelet default uses fqdnOrHostName,
+      # but cert CNs are generated from the short hostname ("system:node:node1").
+      # Node Authorizer rejects: cert subject "node1" cannot read node "node1.example.com".
       hostname = config.networking.hostName;
       clientCaFile = pki.ca.cert;
       tlsCertFile = pki.certs."kubelet-cert".cert;
