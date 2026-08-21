@@ -59,51 +59,66 @@
     let
       inherit (inputs.nixpkgs) lib;
     in
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = import inputs.systems;
-      imports = with inputs; [
-        treefmt-nix.flakeModule
-        flake-parts.flakeModules.modules
-        clan-core.flakeModules.default
-        clan-core.flakeModules.testModule
-      ];
+    flake-parts.lib.mkFlake { inherit inputs; } (
+      { config, ... }:
+      {
+        systems = import inputs.systems;
+        imports = with inputs; [
+          treefmt-nix.flakeModule
+          flake-parts.flakeModules.modules
+          clan-core.flakeModules.default
+          clan-core.flakeModules.testModule
+        ];
 
-      flake.lib = import ./lib { inherit lib; };
+        flake.lib = import ./lib { inherit lib; };
 
-      clan = {
-        imports = [ ./clan.nix ];
-        specialArgs = { inherit inputs; };
-      };
+        clan = {
+          imports = [ ./clan.nix ];
+          specialArgs = { inherit inputs; };
+        };
 
-      perSystem =
-        { pkgs, ... }:
-        {
-          devShells.default = pkgs.mkShellNoCC {
-            packages = with pkgs; [
-              gnumake
-              nixfmt
-            ];
-          };
-
-          clan.nixosTests.single-node-cluster = import ./examples/single-node/tests/vm/default.nix;
-
-          treefmt = {
-            programs = {
-              nixfmt.enable = true;
-              mdformat.enable = true;
-              yamlfmt.enable = true;
-              jsonfmt.enable = true;
-              mbake = {
-                enable = true;
-                settings.ensure_final_newline = true;
-              };
+        perSystem =
+          { pkgs, ... }:
+          {
+            devShells.default = pkgs.mkShellNoCC {
+              packages = with pkgs; [
+                gnumake
+                nixfmt
+              ];
             };
 
-            settings.formatter.mdformat.excludes = [
-              ".agents/skills/**"
-              ".claude/skills/**"
-            ];
+            clan.nixosTests.single-node-cluster = import ./examples/single-node/tests/vm/default.nix {
+              # Reuse this flake's own resolved module registry (the same
+              # thing an external consumer gets via `inputs.cairn.clan.modules`)
+              # instead of the test importing module source files directly.
+              cairnModules = lib.getAttrs [
+                "@UnstoppableMango/pki"
+                "@UnstoppableMango/etcd"
+                "@UnstoppableMango/apiserver"
+                "@UnstoppableMango/kubelet"
+                "@UnstoppableMango/network"
+                "@UnstoppableMango/kubeconfig"
+              ] config.flake.clan.modules;
+            };
+
+            treefmt = {
+              programs = {
+                nixfmt.enable = true;
+                mdformat.enable = true;
+                yamlfmt.enable = true;
+                jsonfmt.enable = true;
+                mbake = {
+                  enable = true;
+                  settings.ensure_final_newline = true;
+                };
+              };
+
+              settings.formatter.mdformat.excludes = [
+                ".agents/skills/**"
+                ".claude/skills/**"
+              ];
+            };
           };
-        };
-    };
+      }
+    );
 }

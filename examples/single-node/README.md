@@ -16,7 +16,7 @@ On a real multi-machine cluster, dedicated worker machines don't need this since
 ## Adapting this for a real machine
 
 - Substitute `node1`'s IP (`10.10.0.11` by default, passed via `inventory.nix`'s `ip`/`vip` arguments) for a real one on your network.
-- `cairn.url = "path:../.."` points at this repo's checkout so the example is self-contained; point it at `github:UnstoppableMango/cairn` (or a pinned rev) for a real deployment.
+- `cairn.url = "path:../.."` points at this repo's checkout so the example always reflects the current source; point it at `github:UnstoppableMango/cairn` (or a pinned rev) once you're consuming cairn from outside this repo.
 - Run `nix flake check` then `clan vars generate`, this prompts for CA certificate/key material (PEM) on first run.
   If you already have CA material to reuse, set `cluster.cairn.pki.ca.override = { crt; key; }` instead; see `modules/service/pki/README.md`.
 - `clan machines install node1 --target-host root@<ip>` to deploy, then `ssh root@<ip>` and `kubectl get nodes` to verify.

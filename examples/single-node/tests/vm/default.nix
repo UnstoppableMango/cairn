@@ -1,4 +1,10 @@
 {
+  # The same modules a real consumer resolves via `inputs.cairn.clan.modules`,
+  # passed in by whoever wires this test up (see flake.nix) instead of this
+  # file reaching into module source files itself.
+  cairnModules,
+}:
+{
   name = "single-node-cluster";
 
   clan = {
@@ -7,8 +13,9 @@
     # etcd/apiserver TLS won't work in containers.
     test.useContainers = false;
 
+    modules = cairnModules;
+
     imports = [
-      ../../../../clan.nix
       (import ../../inventory.nix {
         moduleInput = "self";
         ip = "127.0.0.1";
