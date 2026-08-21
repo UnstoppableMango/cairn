@@ -1,3 +1,4 @@
+{ cairnLib }:
 {
   config,
   lib,
@@ -5,11 +6,10 @@
 }:
 let
   cfg = config.cluster.cairn.loadbalancer;
-  cairnOptions = import ../../../lib/options.nix { inherit lib; };
 in
 {
   options.cluster.cairn.loadbalancer = {
-    vip = cairnOptions.vip;
+    vip = cairnLib.options.vip;
 
     interface = lib.mkOption {
       type = lib.types.str;

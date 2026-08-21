@@ -1,3 +1,4 @@
+{ cairnLib }:
 {
   _class = "clan.service";
   manifest.name = "kubelet";
@@ -30,24 +31,21 @@
 
     interface =
       { lib, ... }:
-      let
-        cairnOptions = import ../../../lib/options.nix { inherit lib; };
-      in
       {
         options.ip = lib.mkOption {
           type = lib.types.str;
           description = "IP address of this worker node.";
         };
 
-        options.vip = cairnOptions.vip;
-        options.clusterName = cairnOptions.clusterName;
+        options.vip = cairnLib.options.vip;
+        options.clusterName = cairnLib.options.clusterName;
       };
 
     perInstance =
       { settings, ... }:
       {
         nixosModule = {
-          imports = [ ./worker.nix ];
+          imports = [ (import ./worker.nix { inherit cairnLib; }) ];
           cluster.cairn.kubelet = {
             inherit (settings) vip clusterName;
             advertiseAddress = settings.ip;
