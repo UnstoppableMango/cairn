@@ -1,8 +1,8 @@
+{ a2b }:
 {
   config,
   lib,
   pkgs,
-  inputs,
   ...
 }:
 let
@@ -10,7 +10,7 @@ let
 
   cfg = config.cluster.cairn.flux;
 
-  flux = inputs.a2b.legacyPackages.${system}.lib.flux;
+  flux = a2b.legacyPackages.${system}.lib.flux;
 
   # gotk-components.yaml — Flux controller manifests, built at eval time via
   # `flux install --export` (no cluster access needed to generate this).

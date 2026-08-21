@@ -1,3 +1,4 @@
+{ a2b }:
 {
   _class = "clan.service";
   manifest.name = "flux";
@@ -31,7 +32,7 @@
       { settings, ... }:
       {
         nixosModule = {
-          imports = [ ./control-plane.nix ];
+          imports = [ (import ./control-plane.nix { inherit a2b; }) ];
           cluster.cairn.flux = {
             inherit (settings) url branch path;
           };

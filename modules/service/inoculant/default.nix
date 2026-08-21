@@ -1,3 +1,4 @@
+{ inoculant }:
 {
   _class = "clan.service";
   manifest.name = "inoculant";
@@ -5,6 +6,6 @@
 
   roles.node = {
     description = "Wires inoculant's clusterAdmin cert so other services can bootstrap manifests.";
-    perInstance.nixosModule = ./node.nix;
+    perInstance.nixosModule = import ./node.nix { inherit inoculant; };
   };
 }
