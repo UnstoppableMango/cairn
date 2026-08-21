@@ -1,4 +1,3 @@
-{ inputs }:
 { clanLib, ... }:
 {
   _class = "clan.service";
@@ -12,8 +11,11 @@
 
     interface =
       { lib, ... }:
+      let
+        cairnOptions = import ../../../lib/options.nix { inherit lib; };
+      in
       {
-        options.vip = inputs.self.lib.options.vip;
+        options.vip = cairnOptions.vip;
 
         options.interface = lib.mkOption {
           type = lib.types.str;

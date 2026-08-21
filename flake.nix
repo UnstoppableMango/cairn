@@ -46,6 +46,10 @@
         systems.follows = "systems";
         flake-parts.follows = "flake-parts";
         treefmt-nix.follows = "treefmt-nix";
+        # a2b already pulls these in (via its own "mangopkgs" input); reuse
+        # that copy instead of letting inoculant fetch a second one.
+        gomod2nix.follows = "a2b/mangopkgs/gomod2nix";
+        nix2container.follows = "a2b/mangopkgs/nix2container";
       };
     };
   };
@@ -61,14 +65,13 @@
         treefmt-nix.flakeModule
         flake-parts.flakeModules.modules
         clan-core.flakeModules.default
+        clan-core.flakeModules.testModule
       ];
 
       flake.lib = import ./lib { inherit lib; };
 
       clan = {
-        imports = [
-          (import ./clan.nix { inherit inputs lib; })
-        ];
+        imports = [ ./clan.nix ];
         specialArgs = { inherit inputs; };
       };
 
@@ -81,6 +84,8 @@
               nixfmt
             ];
           };
+
+          clan.nixosTests.single-node-cluster = import ./examples/single-node/tests/vm/default.nix;
 
           treefmt = {
             programs = {

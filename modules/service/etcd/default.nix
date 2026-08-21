@@ -1,4 +1,3 @@
-{ inputs }:
 {
   _class = "clan.service";
   manifest.name = "etcd";
@@ -14,13 +13,16 @@
 
     interface =
       { lib, ... }:
+      let
+        cairnOptions = import ../../../lib/options.nix { inherit lib; };
+      in
       {
         options.ip = lib.mkOption {
           type = lib.types.str;
           description = "IP address of this etcd member.";
         };
 
-        options.clusterName = inputs.self.lib.options.clusterName;
+        options.clusterName = cairnOptions.clusterName;
       };
 
     perInstance =
