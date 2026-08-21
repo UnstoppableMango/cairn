@@ -49,7 +49,6 @@ Cairn exposes a `flake.flakeModules.default` flake-parts module that wires in cl
       imports = [ cairn.flakeModules.default ];
 
       clan = {
-        specialArgs = { inherit inputs; };
         imports = [ ./inventory.nix ];
       };
     };
@@ -57,7 +56,6 @@ Cairn exposes a `flake.flakeModules.default` flake-parts module that wires in cl
 ```
 
 `cairn.flakeModules.default` also sets a sensible default `systems` list; override it yourself if you need something different.
-If you want your NixOS machine modules or inventory to reference your own flake inputs (`inputs.<foo>`), keep setting `clan.specialArgs = { inherit inputs; };` yourself as shown above, cairn doesn't do this for you.
 
 Every `inventory.instances.<name>.module.input` you write against cairn's modules must be `"cairn"`, the name given to the flake input above.
 This is different from cairn's own internal examples (`modules/service/AGENTS.md`), which use `module.input = "self"` because those examples live inside cairn's own flake.

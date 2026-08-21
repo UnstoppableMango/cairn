@@ -1,4 +1,9 @@
-{ self, lib, ... }:
+{
+  self,
+  lib,
+  inputs,
+  ...
+}:
 let
   cairnLib = self.lib;
 in
@@ -24,7 +29,11 @@ in
   modules."@UnstoppableMango/kubeconfig" = lib.modules.importApply ./modules/service/kubeconfig {
     inherit cairnLib;
   };
-  modules."@UnstoppableMango/inoculant" = import ./modules/service/inoculant;
+  modules."@UnstoppableMango/inoculant" = lib.modules.importApply ./modules/service/inoculant {
+    inherit (inputs) inoculant;
+  };
   modules."@UnstoppableMango/coredns" = import ./modules/service/coredns;
-  modules."@UnstoppableMango/flux" = import ./modules/service/flux;
+  modules."@UnstoppableMango/flux" = lib.modules.importApply ./modules/service/flux {
+    inherit (inputs) a2b;
+  };
 }
