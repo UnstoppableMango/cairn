@@ -56,8 +56,8 @@ in
       storageBackend = "kubernetes";
       network = config.services.kubernetes.clusterCidr;
       kubeconfig = flannelKubeconfig;
-      # clan sets meta.domain = "thecluster.io", making fqdnOrHostName return
-      # "pik8s4.thecluster.io", but kubelet registers nodes with the short name.
+      # clan sets meta.domain, making fqdnOrHostName return e.g. "node1.example.com",
+      # but kubelet registers nodes with the short name.
       nodeName = config.networking.hostName;
     };
     services.kubernetes.kubelet.cni.config = lib.mkDefault [

@@ -98,7 +98,7 @@ Prefer `roles.<roleName>.machines.<machineName>.settings` (via the `roles` argum
     module.input = "self";  # omit to use clan-core built-ins
 
     roles.server.tags.server = { };    # assign all machines tagged "server"
-    roles.client.machines."agreus" = { };  # assign specific machine
+    roles.client.machines."node1" = { };  # assign specific machine
   };
 }
 ```
@@ -134,8 +134,8 @@ roles.client.interface.options.serverAddr = lib.mkOption {
 };
 
 # Inventory sets the value:
-inventory.instances.myservice.roles.client.machines."agreus" = {
-  settings.serverAddr = "192.168.1.100";
+inventory.instances.myservice.roles.client.machines."node1" = {
+  settings.serverAddr = "10.0.0.10";
 };
 
 # perInstance receives it:
@@ -196,7 +196,7 @@ Declare what a service produces/consumes via `manifest.exports.out`/`manifest.ex
 
   roles.server.perInstance = { mkExports, ... }: {
     exports = mkExports {
-      server.address.plain = "192.168.1.100";
+      server.address.plain = "10.0.0.10";
     };
     nixosModule = { ... }: { };
   };
