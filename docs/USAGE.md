@@ -49,7 +49,7 @@ Cairn exposes a `flake.flakeModules.default` flake-parts module that wires in cl
       imports = [ cairn.flakeModules.default ];
 
       clan = {
-        imports = [ ./inventory.nix ];
+        imports = [ (import ./inventory.nix { cairnLib = cairn.lib; }) ];
       };
     };
 }
@@ -70,6 +70,7 @@ Start with the machines and their tags:
 
 ```nix
 # inventory.nix
+{ cairnLib }:
 {
   inventory.machines = {
     cp1 = { tags = [ "control-plane" ]; };
@@ -104,16 +105,19 @@ inventory.instances.pki = {
 
 ### etcd
 
-Only the three control-plane machines are etcd members, and each needs its own IP, so assign them explicitly by machine instead of by tag:
+Only the three control-plane machines are etcd members, and each needs its own IP, so assign them explicitly by machine instead of by tag.
+`cairnLib.inventory.mkMachines common perMachine` merges settings shared across machines (`common`) with each machine's own overrides (`perMachine`), producing the `roles.<role>.machines.<name> = { settings = ...; }` shape clan expects — `cairnLib` is the argument threaded into `inventory.nix` from the scaffold above:
 
 ```nix
 inventory.instances.etcd = {
   module.name = "@UnstoppableMango/etcd";
   module.input = "cairn";
 
-  roles.member.machines.cp1.settings = { ip = "10.10.0.11"; clusterName = "example"; };
-  roles.member.machines.cp2.settings = { ip = "10.10.0.12"; clusterName = "example"; };
-  roles.member.machines.cp3.settings = { ip = "10.10.0.13"; clusterName = "example"; };
+  roles.member.machines = cairnLib.inventory.mkMachines { clusterName = "example"; } {
+    cp1.ip = "10.10.0.11";
+    cp2.ip = "10.10.0.12";
+    cp3.ip = "10.10.0.13";
+  };
 };
 ```
 
@@ -127,9 +131,11 @@ inventory.instances.apiserver = {
   module.name = "@UnstoppableMango/apiserver";
   module.input = "cairn";
 
-  roles.control-plane.machines.cp1.settings = { ip = "10.10.0.11"; vip = "10.10.0.10"; clusterName = "example"; };
-  roles.control-plane.machines.cp2.settings = { ip = "10.10.0.12"; vip = "10.10.0.10"; clusterName = "example"; };
-  roles.control-plane.machines.cp3.settings = { ip = "10.10.0.13"; vip = "10.10.0.10"; clusterName = "example"; };
+  roles.control-plane.machines = cairnLib.inventory.mkMachines { vip = "10.10.0.10"; clusterName = "example"; } {
+    cp1.ip = "10.10.0.11";
+    cp2.ip = "10.10.0.12";
+    cp3.ip = "10.10.0.13";
+  };
 };
 ```
 
@@ -143,12 +149,16 @@ inventory.instances.kubelet = {
   module.name = "@UnstoppableMango/kubelet";
   module.input = "cairn";
 
-  roles.control-plane.machines.cp1.settings.ip = "10.10.0.11";
-  roles.control-plane.machines.cp2.settings.ip = "10.10.0.12";
-  roles.control-plane.machines.cp3.settings.ip = "10.10.0.13";
+  roles.control-plane.machines = cairnLib.inventory.mkMachines { } {
+    cp1.ip = "10.10.0.11";
+    cp2.ip = "10.10.0.12";
+    cp3.ip = "10.10.0.13";
+  };
 
-  roles.worker.machines.worker1.settings = { ip = "10.10.0.21"; vip = "10.10.0.10"; clusterName = "example"; };
-  roles.worker.machines.worker2.settings = { ip = "10.10.0.22"; vip = "10.10.0.10"; clusterName = "example"; };
+  roles.worker.machines = cairnLib.inventory.mkMachines { vip = "10.10.0.10"; clusterName = "example"; } {
+    worker1.ip = "10.10.0.21";
+    worker2.ip = "10.10.0.22";
+  };
 };
 ```
 
@@ -163,9 +173,13 @@ inventory.instances.loadbalancer = {
   module.name = "@UnstoppableMango/loadbalancer";
   module.input = "cairn";
 
-  roles.control-plane.machines.cp1.settings = { vip = "10.10.0.10"; interface = "eth0"; virtualRouterId = 51; keepalivedPriority = 150; };
-  roles.control-plane.machines.cp2.settings = { vip = "10.10.0.10"; interface = "eth0"; virtualRouterId = 51; keepalivedPriority = 100; };
-  roles.control-plane.machines.cp3.settings = { vip = "10.10.0.10"; interface = "eth0"; virtualRouterId = 51; keepalivedPriority = 50; };
+  roles.control-plane.machines =
+    cairnLib.inventory.mkMachines { vip = "10.10.0.10"; interface = "eth0"; virtualRouterId = 51; }
+      {
+        cp1.keepalivedPriority = 150;
+        cp2.keepalivedPriority = 100;
+        cp3.keepalivedPriority = 50;
+      };
 };
 ```
 
