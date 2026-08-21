@@ -5,17 +5,12 @@
     cairn.url = "path:../..";
     nixpkgs.follows = "cairn/nixpkgs";
     flake-parts.follows = "cairn/flake-parts";
-    clan-core.follows = "cairn/clan-core";
   };
 
   outputs =
-    inputs@{ flake-parts, clan-core, ... }:
+    inputs@{ flake-parts, cairn, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
-      imports = [ clan-core.flakeModules.default ];
+      imports = [ cairn.flakeModules.default ];
 
       clan = {
         imports = [ (import ./inventory.nix { }) ];
