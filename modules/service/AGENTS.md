@@ -251,7 +251,7 @@ When a service needs access to flake inputs (e.g., `self`, `pkgs`), use `importA
 
 ```nix
 # clan.nix
-modules."@UnstoppableMango/myservice" = lib.importApply ./modules/service/myservice { inherit self inputs; };
+modules."@UnstoppableMango/myservice" = lib.modules.importApply ./modules/service/myservice { inherit self inputs; };
 
 # modules/service/myservice/default.nix
 { self, inputs }: {

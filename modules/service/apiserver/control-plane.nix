@@ -1,3 +1,4 @@
+{ cairnLib }:
 {
   config,
   lib,
@@ -6,8 +7,6 @@
 let
   cfg = config.cluster.cairn.apiserver;
   pki = config.cluster.cairn.pki;
-
-  cairnOptions = import ../../../lib/options.nix { inherit lib; };
 
   apiServerURL = "https://${cfg.vip}:6443";
 
@@ -39,7 +38,7 @@ in
       description = "All apiserver control-plane nodes with their names and IPs.";
     };
 
-    vip = cairnOptions.vip;
+    vip = cairnLib.options.vip;
 
     apiServerURL = lib.mkOption {
       type = lib.types.str;
@@ -59,7 +58,7 @@ in
       description = "First IP of the service CIDR; included in apiserver SANs.";
     };
 
-    clusterName = cairnOptions.clusterName;
+    clusterName = cairnLib.options.clusterName;
 
     advertiseAddress = lib.mkOption {
       type = lib.types.str;

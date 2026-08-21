@@ -1,3 +1,4 @@
+{ cairnLib }:
 {
   config,
   lib,
@@ -7,13 +8,11 @@
 let
   cfg = config.cluster.cairn.network;
   pki = config.cluster.cairn.pki;
-  kubeconfigLib = import ../../../lib/kubeconfig.nix;
-  cairnOptions = import ../../../lib/options.nix { inherit lib; };
 
   apiServerURL = "https://${cfg.vip}:6443";
 
   flannelKubeconfig = pkgs.writeText "flannel.kubeconfig" (
-    kubeconfigLib.mkKubeconfig {
+    cairnLib.kubeconfig.mkKubeconfig {
       ca = pki.ca.cert;
       server = apiServerURL;
       clusterName = cfg.clusterName;
@@ -26,8 +25,8 @@ let
 in
 {
   options.cluster.cairn.network = {
-    vip = cairnOptions.vip;
-    clusterName = cairnOptions.clusterName;
+    vip = cairnLib.options.vip;
+    clusterName = cairnLib.options.clusterName;
   };
 
   config = {

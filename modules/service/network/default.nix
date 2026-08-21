@@ -1,3 +1,4 @@
+{ cairnLib }:
 {
   _class = "clan.service";
   manifest.name = "network";
@@ -6,21 +7,16 @@
   roles.node = {
     description = "Configures Flannel pod networking on a control-plane or worker node.";
 
-    interface =
-      { lib, ... }:
-      let
-        cairnOptions = import ../../../lib/options.nix { inherit lib; };
-      in
-      {
-        options.vip = cairnOptions.vip;
-        options.clusterName = cairnOptions.clusterName;
-      };
+    interface = {
+      options.vip = cairnLib.options.vip;
+      options.clusterName = cairnLib.options.clusterName;
+    };
 
     perInstance =
       { settings, ... }:
       {
         nixosModule = {
-          imports = [ ./node.nix ];
+          imports = [ (import ./node.nix { inherit cairnLib; }) ];
           cluster.cairn.network = {
             inherit (settings) vip clusterName;
           };

@@ -1,3 +1,4 @@
+{ cairnLib }:
 { clanLib, ... }:
 {
   _class = "clan.service";
@@ -12,17 +13,14 @@
 
     interface =
       { lib, ... }:
-      let
-        cairnOptions = import ../../../lib/options.nix { inherit lib; };
-      in
       {
         options.ip = lib.mkOption {
           type = lib.types.str;
           description = "IP address this apiserver node advertises.";
         };
 
-        options.vip = cairnOptions.vip;
-        options.clusterName = cairnOptions.clusterName;
+        options.vip = cairnLib.options.vip;
+        options.clusterName = cairnLib.options.clusterName;
 
         options.apiserverPort = lib.mkOption {
           type = lib.types.port;
@@ -60,7 +58,7 @@
         };
 
         nixosModule = {
-          imports = [ ./control-plane.nix ];
+          imports = [ (import ./control-plane.nix { inherit cairnLib; }) ];
           cluster.cairn.apiserver = {
             inherit (settings)
               vip

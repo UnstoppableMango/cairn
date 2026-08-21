@@ -1,22 +1,20 @@
+{ cairnLib }:
 {
   config,
-  lib,
   pkgs,
   ...
 }:
 let
   cfg = config.cluster.cairn.kubeconfig;
   pki = config.cluster.cairn.pki;
-  kubeconfigLib = import ../../../lib/kubeconfig.nix;
-  cairnOptions = import ../../../lib/options.nix { inherit lib; };
   kubeconfigPath = "/etc/kubernetes/admin.kubeconfig";
 
   apiServerURL = "https://${cfg.vip}:6443";
 in
 {
   options.cluster.cairn.kubeconfig = {
-    vip = cairnOptions.vip;
-    clusterName = cairnOptions.clusterName;
+    vip = cairnLib.options.vip;
+    clusterName = cairnLib.options.clusterName;
   };
 
   config = {
@@ -29,7 +27,7 @@ in
 
     environment.etc."kubernetes/admin.kubeconfig" = {
       mode = "0600";
-      text = kubeconfigLib.mkKubeconfig {
+      text = cairnLib.kubeconfig.mkKubeconfig {
         ca = pki.ca.cert;
         server = apiServerURL;
         clusterName = cfg.clusterName;
