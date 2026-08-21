@@ -37,18 +37,18 @@ Each Kubernetes component is its own clan service under `modules/service/`, so c
 
 | Service | Roles | Depends on |
 | --- | --- | --- |
-| `pki` | `node` | — (provides the CA) |
-| `etcd` | `member` | `pki` |
-| `apiserver` | `control-plane` | `pki`, `etcd`, `kubelet` |
-| `kubelet` | `control-plane`, `worker` | `pki` |
-| `loadbalancer` | `control-plane` | `apiserver` |
-| `network` | `node` | `pki`, running apiserver at the VIP |
-| `kubeconfig` | `node` | `pki` |
-| `inoculant` | `node` | `kubeconfig` |
-| `coredns` | `control-plane` | `inoculant`, `kubeconfig` |
-| `flux` | `control-plane` | `inoculant`, `kubeconfig` |
+| [`pki`](modules/service/pki/README.md) | `node` | — (provides the CA) |
+| [`etcd`](modules/service/etcd/README.md) | `member` | `pki` |
+| [`apiserver`](modules/service/apiserver/README.md) | `control-plane` | `pki`, `etcd`, `kubelet` |
+| [`kubelet`](modules/service/kubelet/README.md) | `control-plane`, `worker` | `pki` |
+| [`loadbalancer`](modules/service/loadbalancer/README.md) | `control-plane` | `apiserver` |
+| [`network`](modules/service/network/README.md) | `node` | `pki`, running apiserver at the VIP |
+| [`kubeconfig`](modules/service/kubeconfig/README.md) | `node` | `pki` |
+| [`inoculant`](modules/service/inoculant/README.md) | `node` | `kubeconfig` |
+| [`coredns`](modules/service/coredns/README.md) | `control-plane` | `inoculant`, `kubeconfig` |
+| [`flux`](modules/service/flux/README.md) | `control-plane` | `inoculant`, `kubeconfig` |
 
-Each service's own `README.md` (`modules/service/<name>/README.md`) documents its options and exports in more depth.
+Each service's own README documents its options and exports in more depth.
 
 ## Development
 
@@ -58,7 +58,7 @@ make format  # nix fmt — formats via treefmt (nixfmt, mdformat, yamlfmt, jsonf
 make update  # nix flake update
 ```
 
-See [AGENTS.md](AGENTS.md) for the full architecture and contributor guidance.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full architecture and [CONTRIBUTING.md](CONTRIBUTING.md) for contributor guidance.
 
 ## License
 
