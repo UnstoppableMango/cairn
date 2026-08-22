@@ -1,3 +1,4 @@
+{ cairnLib }:
 {
   _class = "clan.service";
   manifest.name = "etcd";
@@ -13,16 +14,13 @@
 
     interface =
       { lib, ... }:
-      let
-        cairnOptions = import ../../../lib/options.nix { inherit lib; };
-      in
       {
         options.ip = lib.mkOption {
           type = lib.types.str;
           description = "IP address of this etcd member.";
         };
 
-        options.clusterName = cairnOptions.clusterName;
+        options.clusterName = cairnLib.options.clusterName;
       };
 
     perInstance =
@@ -39,7 +37,7 @@
         };
 
         nixosModule = {
-          imports = [ ./member.nix ];
+          imports = [ (import ./member.nix { inherit cairnLib; }) ];
           cluster.cairn.etcd = {
             inherit (settings) clusterName;
             advertiseAddress = settings.ip;

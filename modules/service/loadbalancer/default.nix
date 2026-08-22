@@ -1,3 +1,4 @@
+{ cairnLib }:
 { clanLib, ... }:
 {
   _class = "clan.service";
@@ -11,11 +12,8 @@
 
     interface =
       { lib, ... }:
-      let
-        cairnOptions = import ../../../lib/options.nix { inherit lib; };
-      in
       {
-        options.vip = cairnOptions.vip;
+        options.vip = cairnLib.options.vip;
 
         options.interface = lib.mkOption {
           type = lib.types.str;
@@ -54,7 +52,7 @@
       in
       {
         nixosModule = {
-          imports = [ ./control-plane.nix ];
+          imports = [ (import ./control-plane.nix { inherit cairnLib; }) ];
           cluster.cairn.loadbalancer = {
             inherit (settings)
               vip
