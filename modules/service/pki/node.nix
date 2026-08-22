@@ -105,6 +105,47 @@ let
         script = gencert cert.profile (mkCsrFile "${prefix}-${name}" cert);
       };
 
+  # Plain build-time derivations mirroring the generator scripts above, used
+  # when `inline` is set to bypass clan's vars/generator machinery entirely
+  # (that machinery forces an IFD during nixosTest evaluation; see
+  # examples/single-node/tests/vm/default.nix).
+  inlineCaDrv =
+    if cfg.pki.ca.override != null then
+      pkgs.runCommand "${prefix}-ca-inline" { } ''
+        mkdir -p "$out"
+        cp ${lib.escapeShellArg cfg.pki.ca.override.crt} "$out/crt"
+        cp ${lib.escapeShellArg cfg.pki.ca.override.key} "$out/key"
+      ''
+    else
+      pkgs.runCommand "${prefix}-ca-inline" { nativeBuildInputs = [ pkgs.cfssl ]; } ''
+        mkdir -p "$out"
+        echo '{"CN":"${prefix} CA","key":{"algo":"ecdsa","size":256}}' > csr.json
+        cfssl gencert -initca csr.json | cfssljson -bare ca
+        mv ca.pem "$out/crt"
+        mv ca-key.pem "$out/key"
+      '';
+
+  mkInlineCertDrv =
+    name: cert:
+    if cert.override != null then
+      pkgs.runCommand "${prefix}-${name}-inline" { } ''
+        mkdir -p "$out"
+        cp ${lib.escapeShellArg cert.override.crt} "$out/crt"
+        cp ${lib.escapeShellArg cert.override.key} "$out/key"
+      ''
+    else
+      pkgs.runCommand "${prefix}-${name}-inline" { nativeBuildInputs = [ pkgs.cfssl ]; } ''
+        mkdir -p "$out"
+        cfssl gencert \
+          -ca ${inlineCaDrv}/crt \
+          -ca-key ${inlineCaDrv}/key \
+          -config ${signingConfigFile} \
+          -profile ${cert.profile} \
+          ${mkCsrFile "${prefix}-${name}" cert} | cfssljson -bare cert
+        mv cert.pem "$out/crt"
+        mv cert-key.pem "$out/key"
+      '';
+
   caGenerator =
     if cfg.pki.ca.override != null then
       {
@@ -164,12 +205,25 @@ in
       '';
     };
 
+    inline = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Generate the CA and all certs as plain build-time Nix derivations
+        instead of registering clan vars generators. Keys land in the Nix
+        store world-readable, so this is only appropriate for throwaway
+        test/VM clusters, never for a real deployment: it exists to avoid
+        clan's vars/generator machinery, which requires
+        allow-import-from-derivation during nixosTest evaluation.
+      '';
+    };
+
     certs = lib.mkOption {
       default = { };
       description = "Certificate definitions; each entry produces a clan var generator named <generatorPrefix>-<name>.";
       type = lib.types.attrsOf (
         lib.types.submodule (
-          { name, ... }: {
+          { name, config, ... }: {
             options = {
               cn = lib.mkOption {
                 type = lib.types.str;
@@ -239,10 +293,20 @@ in
               };
             };
 
-            config = {
-              cert = topConfig.clan.core.vars.generators."${prefix}-${name}".files."crt".path;
-              key = topConfig.clan.core.vars.generators."${prefix}-${name}".files."key".path;
-            };
+            config =
+              if cfg.pki.inline then
+                let
+                  cd = mkInlineCertDrv name config;
+                in
+                {
+                  cert = "${cd}/crt";
+                  key = "${cd}/key";
+                }
+              else
+                {
+                  cert = topConfig.clan.core.vars.generators."${prefix}-${name}".files."crt".path;
+                  key = topConfig.clan.core.vars.generators."${prefix}-${name}".files."key".path;
+                };
           }
         )
       );
@@ -284,13 +348,19 @@ in
   ###### implementation
 
   config = {
-    clan.core.vars.generators = {
-      "${prefix}-ca" = caGenerator;
-    }
-    // lib.mapAttrs' (
-      name: cert: lib.nameValuePair "${prefix}-${name}" (mkGenerator name cert)
-    ) cfg.pki.certs;
+    clan.core.vars.generators = lib.mkIf (!cfg.pki.inline) (
+      {
+        "${prefix}-ca" = caGenerator;
+      }
+      // lib.mapAttrs' (
+        name: cert: lib.nameValuePair "${prefix}-${name}" (mkGenerator name cert)
+      ) cfg.pki.certs
+    );
 
-    cluster.cairn.pki.ca.cert = topConfig.clan.core.vars.generators."${prefix}-ca".files."crt".path;
+    cluster.cairn.pki.ca.cert =
+      if cfg.pki.inline then
+        "${inlineCaDrv}/crt"
+      else
+        topConfig.clan.core.vars.generators."${prefix}-ca".files."crt".path;
   };
 }
