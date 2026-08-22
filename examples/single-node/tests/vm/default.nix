@@ -102,7 +102,13 @@
     # No trailing command override: the image's own Cmd already runs sleep by
     # absolute path. Overriding it with a bare "sleep" here would fail to
     # exec, since the container has no $PATH to resolve it against.
-    node1.succeed(
+    #
+    # wait_until_succeeds, not succeed: node Ready doesn't imply the
+    # controller-manager has finished creating the default namespace's
+    # default ServiceAccount yet, so the first attempt can race it and fail
+    # with "serviceaccount default not found". A failed `kubectl run` creates
+    # no pod, so retrying is safe.
+    node1.wait_until_succeeds(
         "kubectl run smoke-test --image=smoke-test:test --image-pull-policy=Never"
         " --restart=Never"
     )
