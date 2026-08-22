@@ -99,9 +99,12 @@
     node1.succeed("kubectl get --raw=/healthz")
     node1.wait_until_succeeds("kubectl get nodes | grep -q ' Ready'")
 
+    # No trailing command override: the image's own Cmd already runs sleep by
+    # absolute path. Overriding it with a bare "sleep" here would fail to
+    # exec, since the container has no $PATH to resolve it against.
     node1.succeed(
         "kubectl run smoke-test --image=smoke-test:test --image-pull-policy=Never"
-        " --restart=Never -- sleep 3600"
+        " --restart=Never"
     )
     node1.wait_until_succeeds(
         "kubectl get pod smoke-test -o jsonpath='{.status.phase}' | grep -q Running"
