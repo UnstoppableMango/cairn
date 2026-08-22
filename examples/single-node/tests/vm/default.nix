@@ -67,6 +67,22 @@
       };
     in
     {
+      # nixpkgs' flannel v0.28.9 source hash doesn't match the tag's current
+      # GitHub archive content (upstream nixpkgs staleness, unrelated to
+      # cairn); pin the correct hash here until nixpkgs catches up.
+      nixpkgs.overlays = [
+        (final: prev: {
+          flannel = prev.flannel.overrideAttrs (_old: {
+            src = prev.fetchFromGitHub {
+              owner = "flannel-io";
+              repo = "flannel";
+              rev = "v${prev.flannel.version}";
+              hash = "sha256-Im/8JB/IfwT3Ne7mSsXH71tEGf53MhSzNLw0pevLjn8=";
+            };
+          });
+        })
+      ];
+
       # No network access in the test VM: seed the smoke-test pod's image
       # locally instead of letting kubelet try to pull it.
       services.kubernetes.kubelet.seedDockerImages = [ smokeTestImage ];
