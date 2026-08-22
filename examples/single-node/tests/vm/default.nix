@@ -96,7 +96,7 @@
     node1.wait_for_unit("kubelet.service")
     node1.wait_for_unit("flannel.service")
 
-    node1.succeed("kubectl get --raw=/healthz")
+    node1.wait_until_succeeds("kubectl get --raw=/healthz")
     node1.wait_until_succeeds("kubectl get nodes | grep -q ' Ready'")
 
     # No trailing command override: the image's own Cmd already runs sleep by
