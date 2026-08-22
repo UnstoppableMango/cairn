@@ -14,20 +14,22 @@ Deploying a real cluster means writing a *consumer* flake that adds cairn as an 
 ## Commands
 
 ```sh
-make check     # nix flake check — evaluates the flake and runs the NixOS VM test
+make check     # nix flake check --option allow-import-from-derivation true — evaluates the flake and runs the NixOS VM test
 make format    # nix fmt — formats via treefmt (nixfmt, mdformat, yamlfmt, jsonfmt, mbake)
 make update    # nix flake update
 ```
 
-Equivalent raw commands: `nix flake check`, `nix fmt`.
+Equivalent raw commands: `nix flake check --option allow-import-from-derivation true`, `nix fmt`.
+
+The single-node-cluster VM test provisions its vars/secrets via clan's generator machinery, which clan-core builds during evaluation (import-from-derivation). That flag is passed explicitly on `check` rather than pinned via the flake's `nixConfig`, since a flake `nixConfig` setting is reapplied on every command run directly against this repo (overriding even an opposing `--option` on the command line) — pinning it there would force IFD on for every such command, not just `check`.
 
 To run just the single-node VM test target directly:
 
 ```sh
-nix build .#checks.x86_64-linux.single-node-cluster
+nix build .#checks.x86_64-linux.single-node-cluster --option allow-import-from-derivation true
 ```
 
-CI (`.github/workflows/ci.yml`) runs only `nix flake check` on push to `main` and on PRs.
+CI (`.github/workflows/ci.yml`) runs only `nix flake check --option allow-import-from-derivation true` on push to `main` and on PRs.
 
 ## Architecture
 
