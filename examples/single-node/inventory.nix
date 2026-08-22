@@ -50,18 +50,20 @@
       module.name = "@UnstoppableMango/network";
       module.input = moduleInput;
 
-      roles.node.tags.all = {
-        settings = { inherit vip clusterName; };
-      };
+      # `tags` is membership-only; clan never reads settings nested under a
+      # tag (only role-wide `roles.<role>.settings` and per-machine
+      # `roles.<role>.machines.<name>.settings` feed evalMachineSettings), so
+      # the role-wide settings applying to every tag-matched machine go here.
+      roles.node.tags = [ "all" ];
+      roles.node.settings = { inherit vip clusterName; };
     };
 
     kubeconfig = {
       module.name = "@UnstoppableMango/kubeconfig";
       module.input = moduleInput;
 
-      roles.node.tags.all = {
-        settings = { inherit vip clusterName; };
-      };
+      roles.node.tags = [ "all" ];
+      roles.node.settings = { inherit vip clusterName; };
     };
   };
 }

@@ -22,13 +22,40 @@
       })
     ];
 
-    machines.node1 = {
-      services.kubernetes.roles = [ "node" ];
-    };
+    machines.node1 =
+      { pkgs, ... }:
+      let
+        # Throwaway CA, generated at eval time so the pki service's
+        # interactive CA prompt (clan vars generate) never fires in the
+        # test. Set here (clan.machines.node1) rather than on the nixosTest's
+        # `nodes.node1` because vars/generators are computed from
+        # clanInternals.machines (fed by clan.machines), a separate
+        # evaluation from the nixosTest node config.
+        testCa =
+          pkgs.runCommand "single-node-test-ca"
+            {
+              nativeBuildInputs = [ pkgs.cfssl ];
+            }
+            ''
+              mkdir -p "$out"
+              echo '{"CN":"single-node-cluster test CA","key":{"algo":"ecdsa","size":256}}' > csr.json
+              cfssl gencert -initca csr.json | cfssljson -bare ca
+              mv ca.pem "$out/crt"
+              mv ca-key.pem "$out/key"
+            '';
+      in
+      {
+        services.kubernetes.roles = [ "node" ];
+
+        cluster.cairn.pki.ca.override = {
+          crt = "${testCa}/crt";
+          key = "${testCa}/key";
+        };
+      };
   };
 
   nodes.node1 =
-    { pkgs, lib, ... }:
+    { pkgs, ... }:
     let
       smokeTestImage = pkgs.dockerTools.buildImage {
         name = "smoke-test";
@@ -40,17 +67,6 @@
       };
     in
     {
-      # Generate the whole PKI chain as plain build-time derivations instead
-      # of clan vars generators: clan's vars machinery forces an IFD during
-      # nixosTest evaluation (see modules/service/pki/node.nix's `inline`
-      # option), which this flake disallows.
-      cluster.cairn.pki.inline = true;
-
-      # clan-core's test framework unconditionally overrides this to a
-      # derivation that merges in generated vars/secrets (also IFD); nothing
-      # here uses vars anymore, so force it back to the plain source dir.
-      clan.core.settings.directory = lib.mkForce ./.;
-
       # No network access in the test VM: seed the smoke-test pod's image
       # locally instead of letting kubelet try to pull it.
       services.kubernetes.kubelet.seedDockerImages = [ smokeTestImage ];
