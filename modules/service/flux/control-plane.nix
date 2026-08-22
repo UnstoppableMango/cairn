@@ -17,7 +17,7 @@ let
   componentsManifest = flux.install { namespace = "flux-system"; };
 
   # gotk-sync.yaml — GitRepository + Kustomization pointing Flux at itself.
-  # the-cluster is public, so no deploy-key/secretRef is needed here.
+  # Assumes the GitOps repository is public, so no deploy-key/secretRef is needed here.
   sourceManifest = flux.createSourceGit {
     name = "flux-system";
     namespace = "flux-system";
@@ -34,7 +34,7 @@ let
   };
 
   # Bundled the way `flux bootstrap` lays them out, so this directory can be
-  # copied verbatim into the-cluster's clusters/cairn/flux-system once
+  # copied verbatim into the GitOps repository's flux-system path once
   # the cluster is self-managing. inoculant applies raw manifest files
   # directly, so this is handed to it via `manifestFiles` rather than being
   # re-encoded as Nix attrs.
@@ -78,7 +78,6 @@ in
   options.cluster.cairn.flux = {
     url = lib.mkOption {
       type = lib.types.str;
-      default = "https://github.com/UnstoppableMango/the-cluster";
       description = "Git URL of the GitOps repository Flux syncs from.";
     };
 

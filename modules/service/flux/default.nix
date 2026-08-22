@@ -11,7 +11,6 @@
       {
         options.url = lib.mkOption {
           type = lib.types.str;
-          default = "https://github.com/UnstoppableMango/the-cluster";
           description = "Git URL of the GitOps repository Flux syncs from.";
         };
 

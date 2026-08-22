@@ -5,7 +5,6 @@ This walks through deploying a complete HA Kubernetes cluster with cairn, end to
 Cairn itself is a library flake.
 It registers [clan](https://clan.lol) service modules (`@UnstoppableMango/pki`, `@UnstoppableMango/etcd`, and so on) but declares no machines and no inventory of its own; see `clan.nix` in the repo root.
 Deploying a cluster means creating your own flake that adds cairn as an input and declares an `inventory` of machines and service instances against cairn's modules.
-This is the same pattern the maintainer's own cluster repo, [the-cluster](https://github.com/UnstoppableMango/the-cluster), uses.
 
 ## Example Topology
 
