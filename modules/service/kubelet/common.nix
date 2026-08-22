@@ -47,6 +47,11 @@ in
       };
     };
 
+    services.kubernetes.proxy.kubeconfig = {
+      certFile = pki.certs."kube-proxy-cert".cert;
+      keyFile = pki.certs."kube-proxy-cert".key;
+    };
+
     networking.firewall.allowedTCPPorts = [
       10250 # kubelet API
     ];

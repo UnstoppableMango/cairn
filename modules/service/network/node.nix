@@ -50,6 +50,13 @@ in
       owner = "root";
     };
 
+    cluster.cairn.pki.certs."kube-proxy-cert" = {
+      cn = "system:kube-proxy";
+      org = "system:kube-proxy";
+      profile = "client";
+      owner = "root";
+    };
+
     services.kubernetes.flannel.enable = lib.mkForce false;
     services.flannel = {
       enable = true;

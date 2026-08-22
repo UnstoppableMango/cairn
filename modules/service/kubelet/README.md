@@ -10,4 +10,9 @@ Configures `services.kubernetes.kubelet.*`.
   `services.kubernetes.roles = [ "node" ]` itself, since no apiserver
   service runs there.
 
-Needs [pki](../pki) assigned to the same machines.
+Also wires `services.kubernetes.proxy.kubeconfig` (kube-proxy is enabled by
+default on both the `master` and `node` NixOS kubernetes roles), using the
+`kube-proxy-cert` defined by [network](../network).
+
+Needs [pki](../pki) and [network](../network) assigned to the same
+machines.
