@@ -51,11 +51,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1787170645,
-        "narHash": "sha256-NoLNo/VaXYn0uOwFy7ZaYtKLc58NEj+sb1/cpSTlYrs=",
-        "rev": "113a8c0e5bb8fc6970c7c9059f4b421c8d3df7d8",
+        "lastModified": 1787393178,
+        "narHash": "sha256-HxxL231gBGQd8t/ti/x2oLphO2WczQFccLW+LgbA8Qg=",
+        "rev": "1ff281cffe7e6e18a6c9cea8fa33f2cf54af0584",
         "type": "tarball",
-        "url": "https://git.clan.lol/api/v1/repos/clan/clan-core/archive/113a8c0e5bb8fc6970c7c9059f4b421c8d3df7d8.tar.gz"
+        "url": "https://git.clan.lol/api/v1/repos/clan/clan-core/archive/1ff281cffe7e6e18a6c9cea8fa33f2cf54af0584.tar.gz"
       },
       "original": {
         "type": "tarball",
@@ -78,11 +78,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1787134097,
-        "narHash": "sha256-UHSouqnW77aNMy6gwMnvk+Nv1+MSyobHQ8YvvI5cdls=",
-        "rev": "959a71d18e4669a148ce5a35ad79455dbbd0f6f1",
+        "lastModified": 1787343639,
+        "narHash": "sha256-T/qCSP/991gOMjIq2GcATF5qQiKY5ZZA9AgmV+iIIHY=",
+        "rev": "75dd353d8fc2258b249d8554022a1542c2a9c028",
         "type": "tarball",
-        "url": "https://git.clan.lol/api/v1/repos/clan/data-mesher/archive/959a71d18e4669a148ce5a35ad79455dbbd0f6f1.tar.gz"
+        "url": "https://git.clan.lol/api/v1/repos/clan/data-mesher/archive/75dd353d8fc2258b249d8554022a1542c2a9c028.tar.gz"
       },
       "original": {
         "type": "tarball",
@@ -223,11 +223,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1787172459,
-        "narHash": "sha256-jJTa5nwjoP8sIiDhgGAlJ6DEJM/ul0m8C9p8cunhGoU=",
+        "lastModified": 1787382001,
+        "narHash": "sha256-VoL2E97eADbMM2aK0RP1eAwrTL1sS0ODi9Kt5M5UK3Q=",
         "owner": "UnstoppableMango",
         "repo": "inoculant",
-        "rev": "dac1e141727af89e4090ad4190441a1ce22e9001",
+        "rev": "63f58ff4e827d85e7242d2f58554e2d852deb39d",
         "type": "github"
       },
       "original": {
@@ -330,11 +330,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1787135253,
-        "narHash": "sha256-RD2kNWCG+Bjo6h+JVjWVNntZs2GtRoeY2xHjts/FNkA=",
+        "lastModified": 1787360063,
+        "narHash": "sha256-dt4WdcvsA8/RCe+VZZwqU0X+XMM3wBbGCWA0/sFWzGo=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "ffb3c9b700e759be2ef13237c9d8f953b32a1e46",
+        "rev": "2c423e03bbafcff28bfadc6781a4a8257f205cb5",
         "type": "github"
       },
       "original": {
