@@ -53,11 +53,10 @@
   outputs =
     inputs@{ flake-parts, ... }:
     let
-      inherit (inputs.nixpkgs) lib;
       cairnFlakeModule = import ./flakeModules/default.nix { cairnInputs = inputs; };
     in
     flake-parts.lib.mkFlake { inherit inputs; } (
-      { config, ... }:
+      { config, lib, ... }:
       {
         imports = with inputs; [
           treefmt-nix.flakeModule
