@@ -2,12 +2,13 @@
   config,
   lib,
   pkgs,
-  inputs,
   ...
 }:
 let
   cfg = config.cluster.cairn.etcd;
   pki = config.cluster.cairn.pki;
+
+  cairnOptions = import ../../../lib/options.nix { inherit lib; };
 
   localHosts = [
     cfg.advertiseAddress
@@ -39,7 +40,7 @@ in
       description = "IP address this node advertises for etcd client/peer traffic.";
     };
 
-    clusterName = inputs.self.lib.options.clusterName;
+    clusterName = cairnOptions.clusterName;
 
     initialClusterState = lib.mkOption {
       type = lib.types.enum [

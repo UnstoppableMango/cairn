@@ -1,4 +1,3 @@
-{ inputs }:
 {
   _class = "clan.service";
   manifest.name = "kubeconfig";
@@ -9,9 +8,12 @@
 
     interface =
       { lib, ... }:
+      let
+        cairnOptions = import ../../../lib/options.nix { inherit lib; };
+      in
       {
-        options.vip = inputs.self.lib.options.vip;
-        options.clusterName = inputs.self.lib.options.clusterName;
+        options.vip = cairnOptions.vip;
+        options.clusterName = cairnOptions.clusterName;
       };
 
     perInstance =

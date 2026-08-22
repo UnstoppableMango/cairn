@@ -2,13 +2,13 @@
   config,
   lib,
   pkgs,
-  inputs,
   ...
 }:
 let
   cfg = config.cluster.cairn.network;
   pki = config.cluster.cairn.pki;
-  kubeconfigLib = inputs.self.lib.kubeconfig;
+  kubeconfigLib = import ../../../lib/kubeconfig.nix;
+  cairnOptions = import ../../../lib/options.nix { inherit lib; };
 
   apiServerURL = "https://${cfg.vip}:6443";
 
@@ -26,8 +26,8 @@ let
 in
 {
   options.cluster.cairn.network = {
-    vip = inputs.self.lib.options.vip;
-    clusterName = inputs.self.lib.options.clusterName;
+    vip = cairnOptions.vip;
+    clusterName = cairnOptions.clusterName;
   };
 
   config = {

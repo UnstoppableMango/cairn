@@ -1,4 +1,3 @@
-{ inputs }:
 { clanLib, ... }:
 {
   _class = "clan.service";
@@ -13,14 +12,17 @@
 
     interface =
       { lib, ... }:
+      let
+        cairnOptions = import ../../../lib/options.nix { inherit lib; };
+      in
       {
         options.ip = lib.mkOption {
           type = lib.types.str;
           description = "IP address this apiserver node advertises.";
         };
 
-        options.vip = inputs.self.lib.options.vip;
-        options.clusterName = inputs.self.lib.options.clusterName;
+        options.vip = cairnOptions.vip;
+        options.clusterName = cairnOptions.clusterName;
 
         options.apiserverPort = lib.mkOption {
           type = lib.types.port;

@@ -3,16 +3,20 @@
     "a2b": {
       "inputs": {
         "flake-parts": [
+          "cairn",
           "flake-parts"
         ],
         "mangopkgs": "mangopkgs",
         "nixpkgs": [
+          "cairn",
           "nixpkgs"
         ],
         "systems": [
+          "cairn",
           "systems"
         ],
         "treefmt-nix": [
+          "cairn",
           "treefmt-nix"
         ]
       },
@@ -30,23 +34,47 @@
         "type": "github"
       }
     },
+    "cairn": {
+      "inputs": {
+        "a2b": "a2b",
+        "clan-core": "clan-core",
+        "flake-parts": "flake-parts",
+        "inoculant": "inoculant",
+        "nixpkgs": "nixpkgs",
+        "systems": "systems",
+        "treefmt-nix": "treefmt-nix"
+      },
+      "locked": {
+        "path": "../..",
+        "type": "path"
+      },
+      "original": {
+        "path": "../..",
+        "type": "path"
+      },
+      "parent": []
+    },
     "clan-core": {
       "inputs": {
         "data-mesher": "data-mesher",
         "disko": "disko",
         "flake-parts": [
+          "cairn",
           "flake-parts"
         ],
         "nix-darwin": "nix-darwin",
         "nix-select": "nix-select",
         "nixpkgs": [
+          "cairn",
           "nixpkgs"
         ],
         "sops-nix": "sops-nix",
         "systems": [
+          "cairn",
           "systems"
         ],
         "treefmt-nix": [
+          "cairn",
           "treefmt-nix"
         ]
       },
@@ -65,14 +93,17 @@
     "data-mesher": {
       "inputs": {
         "flake-parts": [
+          "cairn",
           "clan-core",
           "flake-parts"
         ],
         "nixpkgs": [
+          "cairn",
           "clan-core",
           "nixpkgs"
         ],
         "treefmt-nix": [
+          "cairn",
           "clan-core",
           "treefmt-nix"
         ]
@@ -92,6 +123,7 @@
     "disko": {
       "inputs": {
         "nixpkgs": [
+          "cairn",
           "clan-core",
           "nixpkgs"
         ]
@@ -113,6 +145,7 @@
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": [
+          "cairn",
           "nixpkgs"
         ]
       },
@@ -133,6 +166,7 @@
     "flake-utils": {
       "inputs": {
         "systems": [
+          "cairn",
           "a2b",
           "mangopkgs",
           "systems"
@@ -155,6 +189,7 @@
     "globset": {
       "inputs": {
         "nixpkgs-lib": [
+          "cairn",
           "inoculant",
           "nixpkgs"
         ]
@@ -177,6 +212,7 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "nixpkgs": [
+          "cairn",
           "a2b",
           "mangopkgs",
           "nixpkgs"
@@ -199,26 +235,32 @@
     "inoculant": {
       "inputs": {
         "flake-parts": [
+          "cairn",
           "flake-parts"
         ],
         "globset": "globset",
         "gomod2nix": [
+          "cairn",
           "a2b",
           "mangopkgs",
           "gomod2nix"
         ],
         "nix2container": [
+          "cairn",
           "a2b",
           "mangopkgs",
           "nix2container"
         ],
         "nixpkgs": [
+          "cairn",
           "nixpkgs"
         ],
         "systems": [
+          "cairn",
           "systems"
         ],
         "treefmt-nix": [
+          "cairn",
           "treefmt-nix"
         ]
       },
@@ -239,20 +281,24 @@
     "mangopkgs": {
       "inputs": {
         "flake-parts": [
+          "cairn",
           "a2b",
           "flake-parts"
         ],
         "gomod2nix": "gomod2nix",
         "nix2container": "nix2container",
         "nixpkgs": [
+          "cairn",
           "a2b",
           "nixpkgs"
         ],
         "systems": [
+          "cairn",
           "a2b",
           "systems"
         ],
         "treefmt-nix": [
+          "cairn",
           "a2b",
           "treefmt-nix"
         ]
@@ -274,6 +320,7 @@
     "nix-darwin": {
       "inputs": {
         "nixpkgs": [
+          "cairn",
           "clan-core",
           "nixpkgs"
         ]
@@ -309,6 +356,7 @@
     "nix2container": {
       "inputs": {
         "nixpkgs": [
+          "cairn",
           "a2b",
           "mangopkgs",
           "nixpkgs"
@@ -330,11 +378,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1787135253,
-        "narHash": "sha256-RD2kNWCG+Bjo6h+JVjWVNntZs2GtRoeY2xHjts/FNkA=",
+        "lastModified": 1787070829,
+        "narHash": "sha256-vXNVDVtvfiQuXthP0NHPFdNvvMTkGpx0UP8oddIWbNk=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "ffb3c9b700e759be2ef13237c9d8f953b32a1e46",
+        "rev": "0ae2bc1419c3f345984c2629e72e7a631820fa4d",
         "type": "github"
       },
       "original": {
@@ -346,18 +394,25 @@
     },
     "root": {
       "inputs": {
-        "a2b": "a2b",
-        "clan-core": "clan-core",
-        "flake-parts": "flake-parts",
-        "inoculant": "inoculant",
-        "nixpkgs": "nixpkgs",
-        "systems": "systems",
-        "treefmt-nix": "treefmt-nix"
+        "cairn": "cairn",
+        "clan-core": [
+          "cairn",
+          "clan-core"
+        ],
+        "flake-parts": [
+          "cairn",
+          "flake-parts"
+        ],
+        "nixpkgs": [
+          "cairn",
+          "nixpkgs"
+        ]
       }
     },
     "sops-nix": {
       "inputs": {
         "nixpkgs": [
+          "cairn",
           "clan-core",
           "nixpkgs"
         ]
@@ -394,6 +449,7 @@
     "treefmt-nix": {
       "inputs": {
         "nixpkgs": [
+          "cairn",
           "nixpkgs"
         ]
       },

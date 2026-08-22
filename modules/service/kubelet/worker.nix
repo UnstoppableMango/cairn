@@ -1,12 +1,13 @@
 {
   config,
   lib,
-  inputs,
   ...
 }:
 let
   cfg = config.cluster.cairn.kubelet;
   pki = config.cluster.cairn.pki;
+
+  cairnOptions = import ../../../lib/options.nix { inherit lib; };
 
   apiServerURL = "https://${cfg.vip}:6443";
 in
@@ -14,8 +15,8 @@ in
   imports = [ ./common.nix ];
 
   options.cluster.cairn.kubelet = {
-    vip = inputs.self.lib.options.vip;
-    clusterName = inputs.self.lib.options.clusterName;
+    vip = cairnOptions.vip;
+    clusterName = cairnOptions.clusterName;
   };
 
   config.services.kubernetes = {

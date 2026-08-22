@@ -1,10 +1,6 @@
 {
   description = "A Kubernetes distribution built on Nix and clan";
 
-  nixConfig = {
-    allow-import-from-derivation = false;
-  };
-
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
     systems.url = "github:nix-systems/triplet";
@@ -46,6 +42,10 @@
         systems.follows = "systems";
         flake-parts.follows = "flake-parts";
         treefmt-nix.follows = "treefmt-nix";
+        # a2b already pulls these in (via its own "mangopkgs" input); reuse
+        # that copy instead of letting inoculant fetch a second one.
+        gomod2nix.follows = "a2b/mangopkgs/gomod2nix";
+        nix2container.follows = "a2b/mangopkgs/nix2container";
       };
     };
   };
@@ -55,50 +55,66 @@
     let
       inherit (inputs.nixpkgs) lib;
     in
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = import inputs.systems;
-      imports = with inputs; [
-        treefmt-nix.flakeModule
-        flake-parts.flakeModules.modules
-        clan-core.flakeModules.default
-      ];
-
-      flake.lib = import ./lib { inherit lib; };
-
-      clan = {
-        imports = [
-          (import ./clan.nix { inherit inputs lib; })
+    flake-parts.lib.mkFlake { inherit inputs; } (
+      { config, ... }:
+      {
+        systems = import inputs.systems;
+        imports = with inputs; [
+          treefmt-nix.flakeModule
+          flake-parts.flakeModules.modules
+          clan-core.flakeModules.default
+          clan-core.flakeModules.testModule
         ];
-        specialArgs = { inherit inputs; };
-      };
 
-      perSystem =
-        { pkgs, ... }:
-        {
-          devShells.default = pkgs.mkShellNoCC {
-            packages = with pkgs; [
-              gnumake
-              nixfmt
-            ];
-          };
+        flake.lib = import ./lib { inherit lib; };
 
-          treefmt = {
-            programs = {
-              nixfmt.enable = true;
-              mdformat.enable = true;
-              yamlfmt.enable = true;
-              jsonfmt.enable = true;
-              mbake = {
-                enable = true;
-                settings.ensure_final_newline = true;
-              };
+        clan = {
+          imports = [ ./clan.nix ];
+          specialArgs = { inherit inputs; };
+        };
+
+        perSystem =
+          { pkgs, ... }:
+          {
+            devShells.default = pkgs.mkShellNoCC {
+              packages = with pkgs; [
+                gnumake
+                nixfmt
+              ];
             };
 
-            settings.formatter.mdformat.excludes = [
-              ".agents/skills/**"
-              ".claude/skills/**"
-            ];
+            clan.nixosTests.single-node-cluster = import ./examples/single-node/tests/vm/default.nix {
+              # Reuse this flake's own resolved module registry (the same
+              # thing an external consumer gets via `inputs.cairn.clan.modules`)
+              # instead of the test importing module source files directly.
+              cairnModules = lib.getAttrs [
+                "@UnstoppableMango/pki"
+                "@UnstoppableMango/etcd"
+                "@UnstoppableMango/apiserver"
+                "@UnstoppableMango/kubelet"
+                "@UnstoppableMango/network"
+                "@UnstoppableMango/kubeconfig"
+              ] config.flake.clan.modules;
+            };
+
+            treefmt = {
+              programs = {
+                nixfmt.enable = true;
+                mdformat.enable = true;
+                yamlfmt.enable = true;
+                jsonfmt.enable = true;
+                mbake = {
+                  enable = true;
+                  settings.ensure_final_newline = true;
+                };
+              };
+
+              settings.formatter.mdformat.excludes = [
+                ".agents/skills/**"
+                ".claude/skills/**"
+              ];
+            };
           };
-        };
-    };
+      }
+    );
 }
