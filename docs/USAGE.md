@@ -257,6 +257,22 @@ The `pki` service's CA generator prompts for a CA certificate and private key (P
 If you already have CA material you want to reuse, for example when migrating an existing cluster's PKI trust onto cairn, set `cluster.cairn.pki.ca.override = { crt = "/path/to/ca.crt"; key = "/path/to/ca.key"; }` in a NixOS module on the relevant machines instead, and it copies that material in without prompting.
 The same `override` option exists per-certificate under `cluster.cairn.pki.certs.<name>.override`.
 
+If instead you already have generated vars for a pre-existing cluster and just want cairn's generators to line up with the names already on disk, rather than bringing in raw PEM files, set `generatorPrefix` on the `pki` service's `node` role in the inventory instead of reaching for the `override` escape hatch:
+
+```nix
+inventory.instances.pki = {
+  module.name = "@UnstoppableMango/pki";
+  module.input = "cairn";
+
+  roles.node.tags.all = {
+    settings.generatorPrefix = "mycluster";
+  };
+};
+```
+
+This is cluster-wide, every machine's generators must agree on the prefix or certs stop resolving, so it belongs on the inventory instance rather than as a per-machine `extraModules` override.
+It defaults to `"cairn"` and only needs to change when migrating pre-existing generator names.
+
 ## Bootstrap the Machines
 
 The exact `clan` CLI flags can drift between clan-core releases, so treat this section as illustrative and check `clan machines --help` against your pinned `clan-core` version.
