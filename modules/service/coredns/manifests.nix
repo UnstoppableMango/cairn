@@ -188,6 +188,21 @@ in
                 successThreshold = 1;
                 failureThreshold = 5;
               };
+              # Without this, kubelet marks the pod Ready as soon as the
+              # container starts, before CoreDNS finishes waiting on its
+              # Kubernetes API cache sync and actually binds :10053 — callers
+              # racing in against a "ready" replica get connection refused.
+              readinessProbe = {
+                httpGet = {
+                  path = "/health";
+                  port = ports.health;
+                  scheme = "HTTP";
+                };
+                timeoutSeconds = 5;
+                successThreshold = 1;
+                failureThreshold = 3;
+                periodSeconds = 5;
+              };
               resources = {
                 requests = {
                   cpu = "100m";
