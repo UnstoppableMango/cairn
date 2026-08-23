@@ -251,15 +251,27 @@ When a service needs access to flake inputs (e.g., `self`, `pkgs`), use `importA
 
 ```nix
 # clan.nix
-modules."@UnstoppableMango/myservice" = lib.modules.importApply ./modules/service/myservice { inherit self inputs; };
+modules."@UnstoppableMango/myservice" = lib.modules.importApply ./modules/service/myservice {
+  inherit self;
+  inherit (self.inputs) someInput;
+};
 
 # modules/service/myservice/default.nix
-{ self, inputs }: {
+{ self, someInput }: {
   _class = "clan.service";
   manifest.name = "myservice";
-  # self and inputs available here
+  # self and someInput available here
 }
 ```
+
+Reach cairn's own flake inputs through `self.inputs`, never through an `inputs` module argument.
+`clan.specialArgs` does *not* supply module arguments to `clan.nix`; it sets the `specialArgs` passed to each machine's `nixosSystem`.
+So an `inputs` module argument falls back to `_module.args.inputs`, which nothing defines.
+Because `importApply` is lazy, that only explodes once a machine is actually assigned the role, with `error: attribute 'inputs' missing` ([#37](https://github.com/UnstoppableMango/cairn/issues/37)).
+`flake.nix` sets `flake.inputs = inputs;` so `self.inputs` stays populated in every evaluation pass that re-reads cairn's module registry.
+
+Any service that closes over a flake input this way needs coverage that actually assigns its role, otherwise the breakage stays invisible to CI.
+See `checks/consumer-services.nix`.
 
 ## Existing Services in This Repo
 

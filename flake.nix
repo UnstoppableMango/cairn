@@ -104,6 +104,14 @@
               ] config.flake.clan.modules;
             };
 
+            # Evaluation-only coverage for the services no VM test assigns
+            # (see checks/consumer-services.nix).
+            checks.consumer-services = import ./checks/consumer-services.nix {
+              inherit pkgs;
+              inherit (inputs) clan-core nixpkgs;
+              cairnModules = config.flake.clan.modules;
+            };
+
             treefmt = {
               programs = {
                 nixfmt.enable = true;
