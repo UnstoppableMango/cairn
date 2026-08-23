@@ -6,6 +6,13 @@
 let
   cairnLib = self.lib;
 
+  # self.inputs (rather than an `inputs` specialArg) so this resolves the
+  # same way regardless of which evalModules pass re-imports clan.nix — the
+  # nixosTest driver's per-machine module composition re-imports this file
+  # with only NixOS's standard specialArgs (self, lib, pkgs, ...), not
+  # flake.nix's custom `inputs` override.
+  inherit (self.inputs) inoculant a2b;
+
   inherit (lib.modules) importApply;
 in
 {
@@ -30,16 +37,11 @@ in
   modules."@UnstoppableMango/kubeconfig" = importApply ./modules/service/kubeconfig {
     inherit cairnLib;
   };
-  # self.inputs (rather than an `inputs` specialArg) so this resolves the
-  # same way regardless of which evalModules pass re-imports clan.nix — the
-  # nixosTest driver's per-machine module composition re-imports this file
-  # with only NixOS's standard specialArgs (self, lib, pkgs, ...), not
-  # flake.nix's custom `inputs` override.
   modules."@UnstoppableMango/inoculant" = importApply ./modules/service/inoculant {
-    inherit (self.inputs) inoculant;
+    inherit inoculant;
   };
   modules."@UnstoppableMango/coredns" = import ./modules/service/coredns;
   modules."@UnstoppableMango/flux" = importApply ./modules/service/flux {
-    inherit (self.inputs) a2b;
+    inherit a2b;
   };
 }
