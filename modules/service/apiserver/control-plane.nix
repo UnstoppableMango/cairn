@@ -117,6 +117,7 @@ in
 
       apiserver = {
         advertiseAddress = cfg.advertiseAddress;
+        preferredAddressTypes = "InternalIP";
         securePort = cfg.apiserverPort;
         clientCaFile = pki.ca.cert;
         tlsCertFile = pki.certs."apiserver-cert".cert;
