@@ -30,19 +30,6 @@ in
   };
 
   config = {
-    # nixpkgs' flannel-0.28.6 fixed-output derivation has a stale hash for the
-    # GitHub archive tarball (upstream archive content drifted). Pin to the
-    # actually-observed hash until nixpkgs picks up a fix.
-    nixpkgs.overlays = [
-      (_final: prev: {
-        flannel = prev.flannel.overrideAttrs (old: {
-          src = old.src.overrideAttrs (_: {
-            outputHash = "sha256-sqpsUAKBza96AMQMUCG94KOht5ExnHRLR7eGna3m3Xg=";
-          });
-        });
-      })
-    ];
-
     cluster.cairn.pki.certs."flannel-cert" = {
       cn = "flannel";
       org = "system:masters";
