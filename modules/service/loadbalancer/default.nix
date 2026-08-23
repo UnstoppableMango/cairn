@@ -13,54 +13,31 @@
     interface =
       { lib, ... }:
       {
-        options.vip = cairnLib.options.vip;
-
-        options.interface = lib.mkOption {
-          type = lib.types.str;
-          description = "Network interface for keepalived VRRP.";
-        };
-
-        options.virtualRouterId = lib.mkOption {
-          type = lib.types.int;
-          default = 50;
-          description = "Keepalived VRRP virtual router ID (1-255, unique per subnet).";
-        };
-
-        options.keepalivedPriority = lib.mkOption {
-          type = lib.types.int;
-          default = 100;
-          description = "VRRP priority — highest wins the VIP.";
+        options = (import ./options.nix { inherit lib; }) // {
+          inherit (cairnLib.options) vip;
         };
       };
 
     perInstance =
       {
-        lib,
         settings,
         exports,
         ...
       }:
-      let
-        # HAProxy just needs a dial string per backend; no need to split "ip:port" apart.
-        apiserverBackends = lib.concatMap (e: e.endpoints.hosts) (
-          lib.attrValues (
-            clanLib.selectExports (
-              scope: scope.serviceName == "apiserver" && scope.roleName == "control-plane"
-            ) exports
-          )
-        );
-      in
       {
         nixosModule = {
-          imports = [ (import ./control-plane.nix { inherit cairnLib; }) ];
-          cluster.cairn.loadbalancer = {
-            inherit (settings)
-              vip
-              interface
-              virtualRouterId
-              keepalivedPriority
-              ;
-            inherit apiserverBackends;
+          imports = [ ./control-plane.nix ];
+          cluster.cairn = {
+            inherit (settings) vip;
+            loadbalancer = {
+              inherit (settings) interface virtualRouterId keepalivedPriority;
+              # HAProxy just needs a dial string per backend; no need to split
+              # "ip:port" apart.
+              apiserverBackends = cairnLib.exports.endpointHosts clanLib {
+                service = "apiserver";
+                role = "control-plane";
+              } exports;
+            };
           };
         };
       };

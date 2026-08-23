@@ -1,4 +1,3 @@
-{ cairnLib }:
 {
   config,
   lib,
@@ -6,28 +5,12 @@
 }:
 let
   cfg = config.cluster.cairn.loadbalancer;
+  cluster = config.cluster.cairn;
 in
 {
-  options.cluster.cairn.loadbalancer = {
-    vip = cairnLib.options.vip;
+  imports = [ ../cluster.nix ];
 
-    interface = lib.mkOption {
-      type = lib.types.str;
-      description = "Network interface for keepalived VRRP.";
-    };
-
-    virtualRouterId = lib.mkOption {
-      type = lib.types.int;
-      default = 50;
-      description = "Keepalived VRRP virtual router ID (1-255, unique per subnet).";
-    };
-
-    keepalivedPriority = lib.mkOption {
-      type = lib.types.int;
-      default = 100;
-      description = "VRRP priority — highest wins the VIP.";
-    };
-
+  options.cluster.cairn.loadbalancer = (import ./options.nix { inherit lib; }) // {
     apiserverBackends = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       description = "apiserver backend dial targets (\"ip:port\"), from the apiserver service's exports.";
@@ -46,12 +29,12 @@ in
         state = "BACKUP";
         virtualRouterId = cfg.virtualRouterId;
         priority = cfg.keepalivedPriority;
-        virtualIps = [ { addr = "${cfg.vip}/24"; } ];
+        virtualIps = [ { addr = "${cluster.vip}/24"; } ];
       };
     };
 
     # -------------------------------------------------------------------------
-    # HAProxy — LB from VIP:6443 → apiserver nodes
+    # HAProxy — LB from the VIP to the apiserver nodes
     # -------------------------------------------------------------------------
     services.haproxy = {
       enable = true;
@@ -69,7 +52,7 @@ in
           timeout tunnel 1h
 
         frontend k8s-api
-          bind *:6443
+          bind *:${toString cluster.apiServerPort}
           default_backend k8s-api-backend
 
         backend k8s-api-backend
@@ -82,7 +65,7 @@ in
     };
 
     networking.firewall.allowedTCPPorts = [
-      6443 # HAProxy (external VIP)
+      cluster.apiServerPort # HAProxy (external VIP)
     ];
   };
 }

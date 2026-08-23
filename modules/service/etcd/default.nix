@@ -25,7 +25,6 @@
 
     perInstance =
       {
-        lib,
         settings,
         roles,
         mkExports,
@@ -38,13 +37,12 @@
 
         nixosModule = {
           imports = [ (import ./member.nix { inherit cairnLib; }) ];
-          cluster.cairn.etcd = {
+          cluster.cairn = {
             inherit (settings) clusterName;
-            advertiseAddress = settings.ip;
-            nodes = lib.mapAttrsToList (name: m: {
-              inherit name;
-              ip = m.settings.ip;
-            }) roles.member.machines;
+            etcd = {
+              advertiseAddress = settings.ip;
+              nodes = cairnLib.inventory.nodesOf roles.member.machines;
+            };
           };
         };
       };

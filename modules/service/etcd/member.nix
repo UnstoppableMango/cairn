@@ -15,31 +15,17 @@ let
   ];
 
   etcdPeerEndpoints = map (n: "${n.name}=https://${n.ip}:2380") cfg.nodes;
-
-  localNode = lib.findFirst (
-    n: n.ip == cfg.advertiseAddress
-  ) (throw "no etcd node matches advertiseAddress ${cfg.advertiseAddress}") cfg.nodes;
 in
 {
+  imports = [ ../cluster.nix ];
+
   options.cluster.cairn.etcd = {
-    nodes = lib.mkOption {
-      type = lib.types.listOf (
-        lib.types.submodule {
-          options = {
-            name = lib.mkOption { type = lib.types.str; };
-            ip = lib.mkOption { type = lib.types.str; };
-          };
-        }
-      );
-      description = "All etcd member nodes with their names and IPs.";
-    };
+    nodes = cairnLib.options.mkNodes "All etcd member nodes with their names and IPs.";
 
     advertiseAddress = lib.mkOption {
       type = lib.types.str;
       description = "IP address this node advertises for etcd client/peer traffic.";
     };
-
-    clusterName = cairnLib.options.clusterName;
 
     initialClusterState = lib.mkOption {
       type = lib.types.enum [
@@ -80,14 +66,16 @@ in
     };
 
     services.etcd = {
-      name = localNode.name;
+      # The inventory machine name is the machine's hostname, so this matches
+      # the name this node is listed under in `initialCluster`.
+      name = config.networking.hostName;
       listenClientUrls = [ "https://0.0.0.0:2379" ];
       listenPeerUrls = [ "https://0.0.0.0:2380" ];
       advertiseClientUrls = [ "https://${cfg.advertiseAddress}:2379" ];
       initialAdvertisePeerUrls = [ "https://${cfg.advertiseAddress}:2380" ];
       initialCluster = etcdPeerEndpoints;
       initialClusterState = cfg.initialClusterState;
-      initialClusterToken = cfg.clusterName;
+      initialClusterToken = config.cluster.cairn.clusterName;
       clientCertAuth = true;
       peerClientCertAuth = true;
       trustedCaFile = pki.ca.cert;

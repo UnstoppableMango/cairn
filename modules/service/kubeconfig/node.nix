@@ -5,17 +5,12 @@
   ...
 }:
 let
-  cfg = config.cluster.cairn.kubeconfig;
-  pki = config.cluster.cairn.pki;
+  cfg = config.cluster.cairn;
+  pki = cfg.pki;
   kubeconfigPath = "/etc/kubernetes/admin.kubeconfig";
-
-  apiServerURL = "https://${cfg.vip}:6443";
 in
 {
-  options.cluster.cairn.kubeconfig = {
-    vip = cairnLib.options.vip;
-    clusterName = cairnLib.options.clusterName;
-  };
+  imports = [ ../cluster.nix ];
 
   config = {
     cluster.cairn.pki.certs.admin-cert = {
@@ -29,7 +24,7 @@ in
       mode = "0600";
       text = cairnLib.kubeconfig.mkKubeconfig {
         ca = pki.ca.cert;
-        server = apiServerURL;
+        server = cfg.apiServerURL;
         clusterName = cfg.clusterName;
         userName = "kubernetes-admin";
         certFile = pki.certs."admin-cert".cert;

@@ -8,10 +8,8 @@ let
   cfg = config.cluster.cairn.apiserver;
   pki = config.cluster.cairn.pki;
 
-  apiServerURL = "https://${cfg.vip}:6443";
-
   apiserverHosts = [
-    cfg.vip
+    config.cluster.cairn.vip
   ]
   ++ (map (n: n.ip) cfg.nodes)
   ++ [
@@ -25,40 +23,10 @@ let
   ];
 in
 {
-  options.cluster.cairn.apiserver = {
-    nodes = lib.mkOption {
-      type = lib.types.listOf (
-        lib.types.submodule {
-          options = {
-            name = lib.mkOption { type = lib.types.str; };
-            ip = lib.mkOption { type = lib.types.str; };
-          };
-        }
-      );
-      description = "All apiserver control-plane nodes with their names and IPs.";
-    };
+  imports = [ ../cluster.nix ];
 
-    vip = cairnLib.options.vip;
-
-    apiServerURL = lib.mkOption {
-      type = lib.types.str;
-      default = apiServerURL;
-      description = "External URL for the apiserver, fronted by the loadbalancer at the VIP.";
-    };
-
-    apiserverPort = lib.mkOption {
-      type = lib.types.port;
-      default = 6444;
-      description = "Port the local apiserver binds to (loadbalancer fronts 6443 to this port).";
-    };
-
-    serviceClusterIP = lib.mkOption {
-      type = lib.types.str;
-      default = "10.0.0.1";
-      description = "First IP of the service CIDR; included in apiserver SANs.";
-    };
-
-    clusterName = cairnLib.options.clusterName;
+  options.cluster.cairn.apiserver = (import ./options.nix { inherit lib; }) // {
+    nodes = cairnLib.options.mkNodes "All apiserver control-plane nodes with their names and IPs.";
 
     advertiseAddress = lib.mkOption {
       type = lib.types.str;
@@ -109,8 +77,8 @@ in
     # -------------------------------------------------------------------------
     services.kubernetes = {
       roles = [ "master" ];
-      masterAddress = cfg.vip;
-      apiserverAddress = cfg.apiServerURL;
+      masterAddress = config.cluster.cairn.vip;
+      apiserverAddress = config.cluster.cairn.apiServerURL;
       easyCerts = false;
       caFile = pki.ca.cert;
       addonManager.enable = false;
@@ -149,7 +117,7 @@ in
     };
 
     networking.firewall.allowedTCPPorts = [
-      cfg.apiserverPort # kube-apiserver (internal; loadbalancer fronts 6443 externally)
+      cfg.apiserverPort # kube-apiserver (internal; loadbalancer fronts the VIP externally)
       10257 # kube-controller-manager
       10259 # kube-scheduler
     ];
