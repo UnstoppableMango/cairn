@@ -40,6 +40,7 @@ CI (`.github/workflows/ci.yml`) runs only `nix flake check --option allow-import
 - `modules/service/<name>/` — one clan service per Kubernetes cluster component (`default.nix`, role files, `README.md`).
 - `lib/` — small Nix helper library exposed as `flake.lib` (`mkKubeconfig` for generating kubeconfig YAML, shared `options.nix` option definitions like `vip`/`clusterName` reused across service interfaces, and `inventory.mkMachines` for merging shared per-role settings across per-machine inventory entries).
 - `examples/single-node/` — a full, runnable consumer flake (its own `flake.nix` + `inventory.nix`) demonstrating a minimal one-machine cluster, plus a NixOS VM test (`tests/vm/default.nix`) that boots it and smoke-tests `kubectl`.
+- `checks/consumer-services.nix`: an evaluation-only flake check that resolves cairn's modules the way a downstream consumer does (`module.input = "cairn"`, read off `self.inputs`) and forces the services the VM test can't cover, currently `inoculant` and `flux`. These are the only two services that close over cairn's own flake inputs, so nothing else catches them breaking.
 - `docs/USAGE.md` — end-to-end walkthrough for building a multi-machine (5-node HA) consumer flake against cairn.
 - `modules/service/AGENTS.md` — the authoritative reference for the clan-service authoring model used throughout `modules/service/`. Read this before adding or modifying a service.
 
