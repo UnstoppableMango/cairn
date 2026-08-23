@@ -71,6 +71,11 @@
       module.input = moduleInput;
 
       roles.node.tags.control-plane = { };
+      # Settings can't hang off `tags` (see the network instance above), so
+      # this is role-wide — fine here, since the role has one machine.
+      roles.node.settings.nodeLabels = {
+        "node-role.kubernetes.io/control-plane" = "";
+      };
     };
 
     coredns = {
