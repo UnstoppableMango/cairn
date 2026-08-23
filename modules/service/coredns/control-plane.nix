@@ -1,10 +1,16 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 let
   cfg = config.cluster.cairn.coredns;
+
+  ports = {
+    dns = 10053;
+    health = 10054;
+  };
 in
 {
   options.cluster.cairn.coredns = {
@@ -13,87 +19,73 @@ in
       description = "Hostnames of control-plane nodes CoreDNS may be scheduled onto.";
     };
 
-    manifests = lib.mkOption {
-      type = lib.types.attrsOf lib.types.attrs;
-      # nixpkgs computes these regardless of addonManager.enable, which we keep false.
-      # bootstrapAddons mostly holds RBAC for kube-addon-manager, which never runs
-      # here, but dns.nix also stashes coredns's own RBAC there (coredns-cr/-crb,
-      # the system:coredns ClusterRole/ClusterRoleBinding) rather than in
-      # addonManager.addons. Without it the coredns ServiceAccount has no
-      # permissions to list/watch endpoints, services, namespaces or
-      # endpointslices, so pull just those two keys in explicitly.
-      #
-      # coredns's image is only seeded on control-plane nodes; with
-      # imagePullPolicy = Never, the pod would fail to pull if scheduled onto
-      # a worker node lacking it. Pin to control-plane nodes by hostname:
-      # kubelet's NodeRestriction admission blocks self-applied
-      # node-role.kubernetes.io/* labels, and inoculant has no node-labeling
-      # feature yet, so kubernetes.io/hostname (set automatically) is the
-      # only reliable selector available.
+    clusterIp = lib.mkOption {
+      type = lib.types.str;
+      # Same convention Kubernetes tooling uses: the .254 address of the
+      # service CIDR's first three octets.
       default =
-        lib.recursiveUpdate
-          (
-            config.services.kubernetes.addonManager.addons
-            // {
-              inherit (config.services.kubernetes.addonManager.bootstrapAddons) coredns-cr coredns-crb;
-            }
-          )
-          {
-            coredns-deploy.spec.template.spec = {
-              affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms = [
-                {
-                  matchExpressions = [
-                    {
-                      key = "kubernetes.io/hostname";
-                      operator = "In";
-                      values = cfg.nodeNames;
-                    }
-                  ];
-                }
-              ];
+        (lib.concatStringsSep "." (
+          lib.take 3 (lib.splitString "." config.services.kubernetes.apiserver.serviceClusterIpRange)
+        ))
+        + ".254";
+      description = "ClusterIP assigned to the kube-dns Service.";
+    };
 
-              # nixpkgs' default toleration for "node-role.kubernetes.io/master" omits
-              # operator/value, so it defaults to Equal against value "", which never
-              # matches the master taint's value "true" (set by
-              # services.kubernetes.kubelet.taints.master). Use Exists so it actually
-              # tolerates the taint.
-              #
-              # nixpkgs also taints these nodes "unschedulable=true:NoSchedule"
-              # whenever roles = [ "master" ] (services.kubernetes.kubelet.unschedulable
-              # defaults to true for master-only nodes, mimicking kubeadm's "don't run
-              # workloads on control-plane" convention). Since these are the only
-              # nodes the image is seeded on, tolerate that too rather than making
-              # them schedulable generally.
-              tolerations = [
-                {
-                  key = "node-role.kubernetes.io/master";
-                  operator = "Exists";
-                  effect = "NoSchedule";
-                }
-                {
-                  key = "unschedulable";
-                  operator = "Exists";
-                  effect = "NoSchedule";
-                }
-                {
-                  key = "CriticalAddonsOnly";
-                  operator = "Exists";
-                }
-              ];
-            };
-          };
-      description = "CoreDNS manifests applied via inoculant.";
+    clusterDomain = lib.mkOption {
+      type = lib.types.str;
+      default = "cluster.local";
+      description = "Cluster domain CoreDNS serves.";
+    };
+
+    replicas = lib.mkOption {
+      type = lib.types.int;
+      default = 2;
+      description = "Number of CoreDNS pod replicas.";
+    };
+
+    corefile = lib.mkOption {
+      type = lib.types.str;
+      default = ''
+        .:${toString ports.dns} {
+          errors
+          health :${toString ports.health}
+          kubernetes ${cfg.clusterDomain} in-addr.arpa ip6.arpa {
+            pods insecure
+            fallthrough in-addr.arpa ip6.arpa
+          }
+          forward . /etc/resolv.conf
+          cache 30
+          loop
+          reload
+          loadbalance
+        }'';
+      description = "CoreDNS Corefile contents.";
+    };
+
+    image = lib.mkOption {
+      type = lib.types.package;
+      default = pkgs.dockerTools.buildImage {
+        name = "coredns";
+        config.Entrypoint = [ "${pkgs.coredns}/bin/coredns" ];
+      };
+      description = "Docker image seeded for the CoreDNS container.";
     };
   };
 
   config = {
-    services.kubernetes.kubelet.seedDockerImages = [
-      config.services.kubernetes.addons.dns.corednsImage
-    ];
+    # We author CoreDNS's manifests ourselves (./manifests.nix) instead of
+    # harvesting nixpkgs' addonManager-computed ones, so nixpkgs' own DNS
+    # addon module has nothing left to do here.
+    services.kubernetes.addons.dns.enable = false;
+
+    services.kubernetes.kubelet.seedDockerImages = [ cfg.image ];
+    services.kubernetes.kubelet.clusterDns = lib.mkDefault [ cfg.clusterIp ];
 
     services.kubernetes.inoculant = {
       enable = true;
-      manifests = cfg.manifests;
+      manifests = import ./manifests.nix {
+        inherit (cfg) clusterIp corefile replicas image nodeNames;
+      };
     };
   };
 }

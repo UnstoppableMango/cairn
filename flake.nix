@@ -68,10 +68,14 @@
 
         flake.flakeModules.default = cairnFlakeModule;
         flake.lib = import ./lib { inherit lib; };
+        # clan-core's module resolution (module.input = "self") reads
+        # `config.self.inputs` to look up external flake inputs like
+        # `inoculant`/`a2b`. The nixosTest driver re-fetches `self` in
+        # isolation, where that only resolves if we expose it ourselves.
+        flake.inputs = inputs;
 
         clan = {
           imports = [ ./clan.nix ];
-          specialArgs = { inherit inputs; };
         };
 
         perSystem =
@@ -85,6 +89,7 @@
             };
 
             clan.nixosTests.single-node-cluster = import ./examples/single-node/tests/vm/default.nix {
+              inherit pkgs;
               # Reuse this flake's own resolved module registry (the same
               # thing an external consumer gets via `inputs.cairn.clan.modules`)
               # instead of the test importing module source files directly.
@@ -95,6 +100,8 @@
                 "@UnstoppableMango/kubelet"
                 "@UnstoppableMango/network"
                 "@UnstoppableMango/kubeconfig"
+                "@UnstoppableMango/inoculant"
+                "@UnstoppableMango/coredns"
               ] config.flake.clan.modules;
             };
 

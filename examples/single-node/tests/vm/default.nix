@@ -3,6 +3,12 @@
   # passed in by whoever wires this test up (see flake.nix) instead of this
   # file reaching into module source files itself.
   cairnModules,
+  # Only used to embed a plain store-path reference (busybox's nslookup) into
+  # testScript below. Deliberately not read from `nodes.node1` inside
+  # testScript itself: nixosTest strips toplevel-dependent values (like
+  # `nixpkgs.pkgs`) out of `nodes.<name>` there, to avoid a testScript ->
+  # nodes -> toplevel -> testScript recursion cycle.
+  pkgs,
 }:
 {
   name = "single-node-cluster";
@@ -115,5 +121,31 @@
     node1.wait_until_succeeds(
         "kubectl get pod smoke-test -o jsonpath='{.status.phase}' | grep -q Running"
     )
-  '';
+
+    # inoculant bootstraps as a kubelet static pod and applies the coredns
+    # manifests once the apiserver is reachable; wait for the Deployment it
+    # creates to actually roll a replica out.
+    node1.wait_until_succeeds(
+        "kubectl -n kube-system get deployment coredns"
+        " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
+    )
+
+    # Prove DNS actually resolves in-cluster, not just that the Deployment is
+    # Ready. `kubectl exec`/`kubectl logs` both require the apiserver to
+    # dial kubelet directly over TLS, which this test's PKI setup doesn't
+    # support (kubelet's serving cert has no SAN for "node1"). Route around
+    # that by running the lookup as the pod's own command and reading the
+    # result back from the Pod's phase (reported by kubelet's normal
+    # outbound status updates, no apiserver->kubelet dial needed) instead
+    # of execing into it or streaming its logs. busybox's nslookup exits
+    # non-zero on SERVFAIL/NXDOMAIN/timeout, so restartPolicy=Never turns
+    # that into Pod phase Failed rather than Succeeded.
+    node1.wait_until_succeeds(
+        "kubectl run dns-test --image=smoke-test:test --image-pull-policy=Never"
+        " --restart=Never --command -- ${pkgs.busybox}/bin/nslookup kubernetes.default"
+    )
+    node1.wait_until_succeeds(
+        "kubectl get pod dns-test -o jsonpath='{.status.phase}' | grep -q Succeeded"
+    )
+    '';
 }
