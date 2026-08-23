@@ -12,6 +12,17 @@ shared CA and resolves `cert`/`key` paths back onto the option.
 migrating an existing cluster's PKI trust onto cairn) to match pre-existing
 generator names instead of minting new ones.
 
+Since generator names must agree across every machine in the cluster,
+`generatorPrefix` (and `certValidityDays`) are exposed as settings on the
+`node` role, so a migrating consumer sets them once in the inventory instead
+of via `roles.node.extraModules`:
+
+```nix
+roles.node.tags.all = {
+  settings.generatorPrefix = "mycluster";
+};
+```
+
 For bringing in pre-existing cert/key material directly, both the CA
 (`cluster.cairn.pki.ca.override`) and individual certs
 (`cluster.cairn.pki.certs.<name>.override`) accept a `{ crt, key }` pair of
