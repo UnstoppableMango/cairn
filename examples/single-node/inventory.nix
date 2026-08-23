@@ -65,5 +65,19 @@
       roles.node.tags = [ "all" ];
       roles.node.settings = { inherit vip clusterName; };
     };
+
+    inoculant = {
+      module.name = "@UnstoppableMango/inoculant";
+      module.input = moduleInput;
+
+      roles.node.tags.control-plane = { };
+    };
+
+    coredns = {
+      module.name = "@UnstoppableMango/coredns";
+      module.input = moduleInput;
+
+      roles.control-plane.tags.control-plane = { };
+    };
   };
 }

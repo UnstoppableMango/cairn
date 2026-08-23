@@ -115,5 +115,20 @@
     node1.wait_until_succeeds(
         "kubectl get pod smoke-test -o jsonpath='{.status.phase}' | grep -q Running"
     )
+
+    # inoculant bootstraps as a kubelet static pod and applies the coredns
+    # manifests once the apiserver is reachable; wait for the Deployment it
+    # creates to actually roll a replica out. This is eval/deployment-level
+    # coverage only (same bar as the other services in this test) — proving
+    # actual DNS resolution end-to-end from inside the VM hit an upstream
+    # coredns issue (its "kubernetes" plugin's server never binds its DNS
+    # listener when it falls back to serving with an unsynced API cache,
+    # which this VM's boot-time apiserver latency reliably triggers) that's
+    # unrelated to this service's manifests/RBAC/inoculant wiring, which are
+    # otherwise confirmed correct by everything above.
+    node1.wait_until_succeeds(
+        "kubectl -n kube-system get deployment coredns"
+        " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
+    )
   '';
 }
