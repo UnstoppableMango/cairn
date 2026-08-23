@@ -84,7 +84,13 @@ in
     services.kubernetes.inoculant = {
       enable = true;
       manifests = import ./manifests.nix {
-        inherit (cfg) clusterIp corefile replicas image nodeNames;
+        inherit (cfg)
+          clusterIp
+          corefile
+          replicas
+          image
+          nodeNames
+          ;
       };
     };
   };

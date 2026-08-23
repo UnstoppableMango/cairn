@@ -147,5 +147,5 @@
     node1.wait_until_succeeds(
         "kubectl get pod dns-test -o jsonpath='{.status.phase}' | grep -q Succeeded"
     )
-    '';
+  '';
 }
