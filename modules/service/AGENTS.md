@@ -146,6 +146,19 @@ perInstance = { settings, ... }: {
 };
 ```
 
+Declare each setting **once**. A setting that appears both in a role's `interface` and as an option of the role's NixOS module goes in `modules/service/<name>/options.nix` (`{ lib }: { <name> = lib.mkOption { ... }; }`), consumed from both sides:
+
+```nix
+# default.nix
+interface = { lib, ... }: { options = import ./options.nix { inherit lib; }; };
+
+# <role>.nix
+options.cluster.cairn.<name> = import ./options.nix { inherit lib; };
+```
+
+Settings that several services share (`vip`, `clusterName`) come from `cairnLib.options` on the interface side and from `modules/service/cluster.nix` on the NixOS side: role modules `imports = [ ../cluster.nix ]` and their `perInstance` forwards `cluster.cairn.vip = settings.vip`, rather than each service declaring its own `cluster.cairn.<name>.vip`.
+`types.str` merges definitions that agree, so several services forwarding the same value is fine and a disagreement is an eval error.
+
 Use `extendSettings` for machine-local defaults that should NOT propagate to other machines:
 
 ```nix

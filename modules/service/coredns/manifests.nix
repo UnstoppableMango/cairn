@@ -6,11 +6,7 @@
   nodeNames,
 }:
 let
-  ports = {
-    dns = 10053;
-    health = 10054;
-    metrics = 10055;
-  };
+  ports = import ./ports.nix;
 
   labels = {
     k8s-app = "kube-dns";

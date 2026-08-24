@@ -32,23 +32,24 @@
     interface =
       { lib, ... }:
       {
-        options.ip = lib.mkOption {
-          type = lib.types.str;
-          description = "IP address of this worker node.";
-        };
+        options = {
+          ip = lib.mkOption {
+            type = lib.types.str;
+            description = "IP address of this worker node.";
+          };
 
-        options.vip = cairnLib.options.vip;
-        options.clusterName = cairnLib.options.clusterName;
+          inherit (cairnLib.options) vip clusterName;
+        };
       };
 
     perInstance =
       { settings, ... }:
       {
         nixosModule = {
-          imports = [ (import ./worker.nix { inherit cairnLib; }) ];
-          cluster.cairn.kubelet = {
+          imports = [ ./worker.nix ];
+          cluster.cairn = {
             inherit (settings) vip clusterName;
-            advertiseAddress = settings.ip;
+            kubelet.advertiseAddress = settings.ip;
           };
         };
       };

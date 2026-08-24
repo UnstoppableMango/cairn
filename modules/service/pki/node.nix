@@ -10,36 +10,27 @@ let
 
   # ─── Config (JSON) ───────────────────────────────────────────────────────────
 
-  expiryHours = cfg.pki.certValidityDays * 24;
+  expiry = "${toString (cfg.pki.certValidityDays * 24)}h";
   prefix = cfg.pki.generatorPrefix;
 
   signingConfigFile = pkgs.writeText "cfssl-signing-config.json" (
     builtins.toJSON {
       signing = {
-        default.expiry = "${toString expiryHours}h";
-        profiles = {
-          server = {
-            expiry = "${toString expiryHours}h";
-            usages = [
-              "digital signature"
-              "server auth"
-            ];
-          };
-          client = {
-            expiry = "${toString expiryHours}h";
-            usages = [
-              "digital signature"
-              "client auth"
-            ];
-          };
-          peer = {
-            expiry = "${toString expiryHours}h";
-            usages = [
-              "digital signature"
-              "server auth"
-              "client auth"
-            ];
-          };
+        default = { inherit expiry; };
+        profiles = lib.mapAttrs (_: usages: { inherit expiry usages; }) {
+          server = [
+            "digital signature"
+            "server auth"
+          ];
+          client = [
+            "digital signature"
+            "client auth"
+          ];
+          peer = [
+            "digital signature"
+            "server auth"
+            "client auth"
+          ];
         };
       };
     }
@@ -80,96 +71,109 @@ let
     cp ${lib.escapeShellArg override.key} "$out/key"
   '';
 
+  # Every generator, CA included, emits a public "crt" and a secret "key";
+  # only how they're produced differs.
   mkGenerator =
-    name: cert:
-    if cert.override != null then
-      {
-        inherit (cert) share;
-        files."crt".secret = false;
-        files."key" = {
-          secret = true;
-          owner = cert.owner;
-        };
-        script = copyOverride cert.override;
+    { share, key }:
+    rest:
+    {
+      inherit share;
+      files."crt".secret = false;
+      files."key" = {
+        secret = true;
       }
-    else
+      // key;
+    }
+    // rest;
+
+  mkCertGenerator =
+    name: cert:
+    mkGenerator
       {
         inherit (cert) share;
-        runtimeInputs = [ pkgs.cfssl ];
-        dependencies = [ "${prefix}-ca" ];
-        files."crt".secret = false;
-        files."key" = {
-          secret = true;
-          owner = cert.owner;
-        };
-        script = gencert cert.profile (mkCsrFile "${prefix}-${name}" cert);
-      };
+        key.owner = cert.owner;
+      }
+      (
+        if cert.override != null then
+          { script = copyOverride cert.override; }
+        else
+          {
+            runtimeInputs = [ pkgs.cfssl ];
+            dependencies = [ "${prefix}-ca" ];
+            script = gencert cert.profile (mkCsrFile "${prefix}-${name}" cert);
+          }
+      );
 
   caGenerator =
-    if cfg.pki.ca.override != null then
+    mkGenerator
       {
         share = true;
-        files."crt".secret = false;
-        files."key" = {
-          secret = true;
-          deploy = false;
-        };
-        script = copyOverride cfg.pki.ca.override;
+        key.deploy = false;
       }
-    else
-      {
-        share = true;
+      (
+        if cfg.pki.ca.override != null then
+          { script = copyOverride cfg.pki.ca.override; }
+        else
+          {
+            prompts."ca-crt" = {
+              description = "Cluster CA certificate (PEM)";
+              type = "multiline";
+            };
+            prompts."ca-key" = {
+              description = "Cluster CA private key (PEM)";
+              type = "multiline-hidden";
+            };
 
-        prompts."ca-crt" = {
-          description = "Cluster CA certificate (PEM)";
-          type = "multiline";
-        };
-        prompts."ca-key" = {
-          description = "Cluster CA private key (PEM)";
-          type = "multiline-hidden";
-        };
+            script = ''
+              set -euo pipefail
+              cp "$prompts/ca-crt" "$out/crt"
+              cp "$prompts/ca-key" "$out/key"
+            '';
+          }
+      );
 
-        files."crt".secret = false;
-        files."key" = {
-          secret = true;
-          deploy = false;
-        };
+  # ─── Options ─────────────────────────────────────────────────────────────────
 
-        script = ''
-          set -euo pipefail
-          cp "$prompts/ca-crt" "$out/crt"
-          cp "$prompts/ca-key" "$out/key"
-        '';
-      };
+  mkOverrideOption =
+    subject:
+    lib.mkOption {
+      type = lib.types.nullOr (
+        lib.types.submodule {
+          options = {
+            crt = lib.mkOption {
+              type = lib.types.str;
+              description = "Filesystem path to a pre-existing ${subject} certificate (PEM).";
+            };
+            key = lib.mkOption {
+              type = lib.types.str;
+              description = "Filesystem path to a pre-existing ${subject} private key (PEM).";
+            };
+          };
+        }
+      );
+      default = null;
+      description = ''
+        Bring-your-own ${subject} cert/key material to seed this generator
+        with, e.g. when migrating an existing cluster's certificates onto
+        cairn. When set, no CA signing or prompting occurs; the given files
+        are copied in as-is.
+
+        Paths are resolved at `clan vars generate` time on the invoking
+        machine and are never copied into the Nix store.
+      '';
+    };
 in
 {
   ###### interface
 
-  options.cluster.cairn.pki = {
-    certValidityDays = lib.mkOption {
-      type = lib.types.int;
-      default = 3650;
-      description = "Validity period for generated certificates in days.";
-    };
-
-    generatorPrefix = lib.mkOption {
-      type = lib.types.str;
-      default = "cairn";
-      description = ''
-        Prefix used for clan var generator names (e.g. "<prefix>-ca",
-        "<prefix>-<name>"). Override to match pre-existing generator names
-        when migrating an existing cluster's PKI trust onto cairn, so
-        already-provisioned CA/cert material is reused instead of
-        regenerated.
-      '';
-    };
-
+  options.cluster.cairn.pki = (import ./options.nix { inherit lib; }) // {
     certs = lib.mkOption {
       default = { };
       description = "Certificate definitions; each entry produces a clan var generator named <generatorPrefix>-<name>.";
       type = lib.types.attrsOf (
         lib.types.submodule (
-          { name, ... }: {
+          { name, ... }:
+          {
             options = {
               cn = lib.mkOption {
                 type = lib.types.str;
@@ -202,31 +206,7 @@ in
                 default = true;
                 description = "Shared across machines (true) or per-machine (false).";
               };
-              override = lib.mkOption {
-                type = lib.types.nullOr (
-                  lib.types.submodule {
-                    options = {
-                      crt = lib.mkOption {
-                        type = lib.types.str;
-                        description = "Filesystem path to a pre-existing certificate (PEM) to seed this generator with, in place of signing a new one.";
-                      };
-                      key = lib.mkOption {
-                        type = lib.types.str;
-                        description = "Filesystem path to a pre-existing private key (PEM) to seed this generator with, in place of signing a new one.";
-                      };
-                    };
-                  }
-                );
-                default = null;
-                description = ''
-                  Bring-your-own cert/key material for this generator, e.g. when
-                  migrating pre-existing certificates onto cairn. When set, no CA
-                  signing occurs; the given files are copied in as-is.
-
-                  Paths are resolved at `clan vars generate` time on the invoking
-                  machine and are never copied into the Nix store.
-                '';
-              };
+              override = mkOverrideOption "certificate";
               cert = lib.mkOption {
                 type = lib.types.str;
                 readOnly = true;
@@ -254,31 +234,7 @@ in
       description = "Resolved path to the CA certificate.";
     };
 
-    ca.override = lib.mkOption {
-      type = lib.types.nullOr (
-        lib.types.submodule {
-          options = {
-            crt = lib.mkOption {
-              type = lib.types.str;
-              description = "Filesystem path to a pre-existing CA certificate (PEM) to seed the CA generator with.";
-            };
-            key = lib.mkOption {
-              type = lib.types.str;
-              description = "Filesystem path to a pre-existing CA private key (PEM) to seed the CA generator with.";
-            };
-          };
-        }
-      );
-      default = null;
-      description = ''
-        Bring-your-own CA cert/key material, e.g. when migrating an existing
-        cluster's trust onto cairn. When set, the CA generator copies these
-        files in directly instead of prompting for `ca-crt`/`ca-key`.
-
-        Paths are resolved at `clan vars generate` time on the invoking
-        machine and are never copied into the Nix store.
-      '';
-    };
+    ca.override = mkOverrideOption "CA";
   };
 
   ###### implementation
@@ -288,7 +244,7 @@ in
       "${prefix}-ca" = caGenerator;
     }
     // lib.mapAttrs' (
-      name: cert: lib.nameValuePair "${prefix}-${name}" (mkGenerator name cert)
+      name: cert: lib.nameValuePair "${prefix}-${name}" (mkCertGenerator name cert)
     ) cfg.pki.certs;
 
     cluster.cairn.pki.ca.cert = topConfig.clan.core.vars.generators."${prefix}-ca".files."crt".path;

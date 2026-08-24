@@ -6,15 +6,13 @@
   ...
 }:
 let
-  cfg = config.cluster.cairn.network;
-  pki = config.cluster.cairn.pki;
-
-  apiServerURL = "https://${cfg.vip}:6443";
+  cfg = config.cluster.cairn;
+  pki = cfg.pki;
 
   flannelKubeconfig = pkgs.writeText "flannel.kubeconfig" (
     cairnLib.kubeconfig.mkKubeconfig {
       ca = pki.ca.cert;
-      server = apiServerURL;
+      server = cfg.apiServerURL;
       clusterName = cfg.clusterName;
       userName = "flannel";
       contextName = "flannel@${cfg.clusterName}";
@@ -24,10 +22,7 @@ let
   );
 in
 {
-  options.cluster.cairn.network = {
-    vip = cairnLib.options.vip;
-    clusterName = cairnLib.options.clusterName;
-  };
+  imports = [ ../cluster.nix ];
 
   config = {
     cluster.cairn.pki.certs."flannel-cert" = {

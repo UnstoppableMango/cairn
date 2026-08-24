@@ -7,10 +7,7 @@
 let
   cfg = config.cluster.cairn.coredns;
 
-  ports = {
-    dns = 10053;
-    health = 10054;
-  };
+  ports = import ./ports.nix;
 in
 {
   options.cluster.cairn.coredns = {
