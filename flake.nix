@@ -57,6 +57,9 @@
     in
     flake-parts.lib.mkFlake { inherit inputs; } (
       { config, lib, ... }:
+      let
+        cairnLib = import ./lib { inherit lib; };
+      in
       {
         imports = with inputs; [
           treefmt-nix.flakeModule
@@ -67,15 +70,15 @@
         ];
 
         flake.flakeModules.default = cairnFlakeModule;
-        flake.lib = import ./lib { inherit lib; };
-        # clan-core's module resolution (module.input = "self") reads
-        # `config.self.inputs` to look up external flake inputs like
-        # `inoculant`/`a2b`. The nixosTest driver re-fetches `self` in
-        # isolation, where that only resolves if we expose it ourselves.
-        flake.inputs = inputs;
+        flake.lib = cairnLib;
 
         clan = {
-          imports = [ ./clan.nix ];
+          imports = [
+            (lib.modules.importApply ./clan.nix {
+              inherit cairnLib;
+              inherit (inputs) inoculant a2b;
+            })
+          ];
         };
 
         perSystem =
