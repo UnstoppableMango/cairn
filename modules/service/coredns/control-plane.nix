@@ -50,7 +50,7 @@ in
             pods insecure
             fallthrough in-addr.arpa ip6.arpa
           }
-          forward . /etc/resolv.conf
+          forward . 1.1.1.1 1.0.0.1
           cache 30
           loop
           reload
