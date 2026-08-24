@@ -70,6 +70,11 @@ in
         profile = "client";
         owner = "kubernetes";
       };
+      front-proxy-client-cert = {
+        cn = "front-proxy-client";
+        profile = "client";
+        owner = "kubernetes";
+      };
     };
 
     services.kubernetes = {
@@ -91,6 +96,16 @@ in
         serviceAccountSigningKeyFile = pki.certs."sa".key;
         kubeletClientCertFile = pki.certs."apiserver-kubelet-client-cert".cert;
         kubeletClientKeyFile = pki.certs."apiserver-kubelet-client-cert".key;
+        proxyClientCertFile = pki.certs."front-proxy-client-cert".cert;
+        proxyClientKeyFile = pki.certs."front-proxy-client-cert".key;
+        extraOpts = lib.concatStringsSep " " [
+          "--requestheader-client-ca-file=${pki.ca.cert}"
+          "--requestheader-allowed-names=front-proxy-client"
+          "--requestheader-extra-headers-prefix=X-Remote-Extra-"
+          "--requestheader-group-headers=X-Remote-Group"
+          "--requestheader-username-headers=X-Remote-User"
+          "--enable-aggregator-routing=true"
+        ];
         etcd = {
           servers = cfg.etcdEndpoints;
           caFile = pki.ca.cert;
