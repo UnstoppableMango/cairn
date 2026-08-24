@@ -1,18 +1,18 @@
+# Everything this file injects into services arrives by lexical closure from
+# flake.nix (`importApply`), the same way ./flakeModules/default.nix gets
+# `cairnInputs`. Nothing here reads an `inputs` module argument, and nothing
+# reaches back through `self`: `clan.specialArgs` does not supply module
+# arguments to clan.nix, so an `inputs` argument would fall back to
+# `_module.args.inputs`, which nothing defines, and blow up with
+# `error: attribute 'inputs' missing` once a machine is actually assigned the
+# role ([#37](https://github.com/UnstoppableMango/cairn/issues/37)).
 {
-  self,
-  lib,
-  ...
+  cairnLib,
+  inoculant,
+  a2b,
 }:
+{ lib, ... }:
 let
-  cairnLib = self.lib;
-
-  # self.inputs (rather than an `inputs` specialArg) so this resolves the
-  # same way regardless of which evalModules pass re-imports clan.nix — the
-  # nixosTest driver's per-machine module composition re-imports this file
-  # with only NixOS's standard specialArgs (self, lib, pkgs, ...), not
-  # flake.nix's custom `inputs` override.
-  inherit (self.inputs) inoculant a2b;
-
   inherit (lib.modules) importApply;
 in
 {

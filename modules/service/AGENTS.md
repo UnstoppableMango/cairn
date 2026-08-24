@@ -260,28 +260,44 @@ modules/service/myservice/
 
 ## Dependency Injection (importApply)
 
-When a service needs access to flake inputs (e.g., `self`, `pkgs`), use `importApply`:
+When a service needs something the module system won't hand it (a flake input, `cairnLib`), use `importApply`:
 
 ```nix
-# clan.nix
-modules."@UnstoppableMango/myservice" = lib.modules.importApply ./modules/service/myservice {
-  inherit self;
-  inherit (self.inputs) someInput;
-};
+# flake.nix — the one place that touches `inputs`
+clan.imports = [
+  (lib.modules.importApply ./clan.nix {
+    inherit cairnLib;
+    inherit (inputs) someInput;
+  })
+];
+
+# clan.nix — receives them by closure, forwards them the same way
+{ cairnLib, someInput }:
+{ lib, ... }:
+{
+  modules."@UnstoppableMango/myservice" = lib.modules.importApply ./modules/service/myservice {
+    inherit cairnLib someInput;
+  };
+}
 
 # modules/service/myservice/default.nix
-{ self, someInput }: {
+{ cairnLib, someInput }: {
   _class = "clan.service";
   manifest.name = "myservice";
-  # self and someInput available here
+  # cairnLib and someInput available here
 }
 ```
 
-Reach cairn's own flake inputs through `self.inputs`, never through an `inputs` module argument.
+Flake inputs enter the module tree exactly once, in `flake.nix`, and travel down by lexical closure.
+Do not reach for an `inputs` module argument anywhere under `modules/service/` or in `clan.nix`.
 `clan.specialArgs` does *not* supply module arguments to `clan.nix`; it sets the `specialArgs` passed to each machine's `nixosSystem`.
 So an `inputs` module argument falls back to `_module.args.inputs`, which nothing defines.
 Because `importApply` is lazy, that only explodes once a machine is actually assigned the role, with `error: attribute 'inputs' missing` ([#37](https://github.com/UnstoppableMango/cairn/issues/37)).
-`flake.nix` sets `flake.inputs = inputs;` so `self.inputs` stays populated in every evaluation pass that re-reads cairn's module registry.
+
+`self` is the same trap one level removed.
+`self.inputs` and `self.lib` do resolve in `clan.nix` today, but they re-open the flake from inside a module that has no other reason to know cairn is a flake, and they silently depend on whichever `self` the current evaluation pass supplies.
+`clan.nix` therefore takes no `self` argument at all.
+Pass the specific value down the closure instead.
 
 Any service that closes over a flake input this way needs coverage that actually assigns its role, otherwise the breakage stays invisible to CI.
 See `checks/consumer-services.nix`.
