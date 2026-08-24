@@ -2,7 +2,10 @@
 
 The smallest working cluster on cairn: one machine, `node1`, playing every role at once.
 It runs `pki`, `etcd` (single member), `apiserver`, `kubelet`, `network` (flannel), and `kubeconfig`.
-`loadbalancer`, `inoculant`, `coredns`, and `flux` are all skipped, they're optional; see `docs/USAGE.md` in the repo root for a full HA topology that adds them back.
+`loadbalancer` and `flux` are skipped, they're optional; see `docs/USAGE.md` in the repo root for a full HA topology that adds them back.
+
+This example leaves `cairn.clusters` unset and writes its `inventory.instances` out by hand (`inventory.nix`), to show what cairn's services look like at the inventory level.
+Most consumers want the `cairn.clusters` options instead, which generate all of this from a description of the machines; [`examples/ha-cluster`](../ha-cluster) shows that path.
 
 ## Two things that only matter because this is single-node
 
