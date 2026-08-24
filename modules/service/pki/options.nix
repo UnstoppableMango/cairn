@@ -1,5 +1,3 @@
-# Declared once, consumed both as the role's inventory-facing interface
-# (default.nix) and as the NixOS options the role module reads (node.nix).
 { lib }:
 {
   generatorPrefix = lib.mkOption {

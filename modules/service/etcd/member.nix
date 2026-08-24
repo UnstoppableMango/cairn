@@ -53,11 +53,6 @@ in
         profile = "peer";
         owner = "etcd";
       };
-      # Used by apiserver (as an etcd client) and by etcdctl below. Declared
-      # here rather than in the apiserver service since it's fundamentally an
-      # "etcd client identity" and every etcd member already needs it for
-      # local etcdctl tooling; apiserver machines pick it up via the same
-      # shared (share = true) keypair.
       etcd-client-cert = {
         cn = "kube-apiserver-etcd-client";
         profile = "client";
@@ -87,8 +82,8 @@ in
     };
 
     networking.firewall.allowedTCPPorts = [
-      2379 # etcd client
-      2380 # etcd peer
+      2379
+      2380
     ];
 
     environment.systemPackages = [ pkgs.etcd ];

@@ -45,8 +45,6 @@ in
       storageBackend = "kubernetes";
       network = config.services.kubernetes.clusterCidr;
       kubeconfig = flannelKubeconfig;
-      # clan sets meta.domain, making fqdnOrHostName return e.g. "node1.example.com",
-      # but kubelet registers nodes with the short name.
       nodeName = config.networking.hostName;
     };
     services.kubernetes.kubelet.cni.config = lib.mkDefault [
@@ -67,8 +65,8 @@ in
     ];
 
     networking.firewall.allowedUDPPorts = [
-      8285 # flannel udp
-      8472 # flannel VXLAN
+      8285
+      8472
     ];
 
     boot.kernelModules = [ "br_netfilter" ];

@@ -1,7 +1,4 @@
 {
-  # The same modules a real consumer resolves via `inputs.cairn.clan.modules`,
-  # passed in by whoever wires this test up (see flake.nix) instead of this
-  # file reaching into module source files itself.
   cairnModules,
 }:
 {
@@ -10,7 +7,6 @@
   clan = {
     directory = ./.;
 
-    # etcd/apiserver TLS won't work in containers.
     test.useContainers = false;
 
     modules = cairnModules;
@@ -67,8 +63,6 @@
       };
     in
     {
-      # No network access in the test VM: seed the smoke-test pod's image
-      # locally instead of letting kubelet try to pull it.
       services.kubernetes.kubelet.seedDockerImages = [ smokeTestImage ];
     };
 
@@ -100,26 +94,11 @@
         "kubectl get pod smoke-test -o jsonpath='{.status.phase}' | grep -q Running"
     )
 
-    # inoculant bootstraps as a kubelet static pod and applies the coredns
-    # manifests once the apiserver is reachable; wait for the Deployment it
-    # creates to actually roll a replica out. This is eval/deployment-level
-    # coverage only (same bar as the other services in this test) — proving
-    # actual DNS resolution end-to-end from inside the VM hit an upstream
-    # coredns issue (its "kubernetes" plugin's server never binds its DNS
-    # listener when it falls back to serving with an unsynced API cache,
-    # which this VM's boot-time apiserver latency reliably triggers) that's
-    # unrelated to this service's manifests/RBAC/inoculant wiring, which are
-    # otherwise confirmed correct by everything above.
     node1.wait_until_succeeds(
         "kubectl -n kube-system get deployment coredns"
         " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
     )
 
-    # inoculant's label-node container applies the inventory's nodeLabels
-    # once the bootstrap container has written the scoped kubeconfig. Grep
-    # the whole labels map rather than selecting the key by jsonpath: it
-    # contains dots and a slash, which jsonpath would need escaped through
-    # two layers of quoting.
     node1.wait_until_succeeds(
         "kubectl get node node1 -o jsonpath='{.metadata.labels}'"
         " | grep -q 'node-role.kubernetes.io/control-plane'"

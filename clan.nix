@@ -1,11 +1,7 @@
-# Everything this file injects into services arrives by lexical closure from
-# flake.nix (`importApply`), the same way ./flakeModules/default.nix gets
-# `cairnInputs`. Nothing here reads an `inputs` module argument, and nothing
-# reaches back through `self`: `clan.specialArgs` does not supply module
-# arguments to clan.nix, so an `inputs` argument would fall back to
-# `_module.args.inputs`, which nothing defines, and blow up with
-# `error: attribute 'inputs' missing` once a machine is actually assigned the
-# role ([#37](https://github.com/UnstoppableMango/cairn/issues/37)).
+# Don't add an `inputs` module argument here: `clan.specialArgs` doesn't supply
+# one to clan.nix, so it falls back to `_module.args.inputs` (undefined) and
+# blows up with `error: attribute 'inputs' missing` once a machine is assigned
+# the role. Everything needed arrives via lexical closure instead (#37).
 {
   cairnLib,
   inoculant,

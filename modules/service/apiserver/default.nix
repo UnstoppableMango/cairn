@@ -4,7 +4,6 @@
   _class = "clan.service";
   manifest.name = "apiserver";
   manifest.readme = builtins.readFile ./README.md;
-  # See etcd/default.nix for why "endpoints" is used for both directions.
   manifest.exports.inputs = [ "endpoints" ];
   manifest.exports.out = [ "endpoints" ];
 
@@ -33,7 +32,6 @@
         ...
       }:
       {
-        # loadbalancer consumes these as opaque HAProxy dial targets ("ip:port").
         exports = mkExports {
           endpoints.hosts = [ "${settings.ip}:${toString settings.apiserverPort}" ];
         };

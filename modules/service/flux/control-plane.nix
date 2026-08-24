@@ -12,11 +12,8 @@ let
 
   flux = a2b.legacyPackages.${system}.lib.flux;
 
-  # gotk-components.yaml — Flux controller manifests, built at eval time via
-  # `flux install --export` (no cluster access needed to generate this).
   componentsManifest = flux.install { namespace = "flux-system"; };
 
-  # gotk-sync.yaml — GitRepository + Kustomization pointing Flux at itself.
   # Assumes the GitOps repository is public, so no deploy-key/secretRef is needed here.
   sourceManifest = flux.createSourceGit {
     name = "flux-system";
@@ -33,11 +30,6 @@ let
     prune = true;
   };
 
-  # Bundled the way `flux bootstrap` lays them out, so this directory can be
-  # copied verbatim into the GitOps repository's flux-system path once
-  # the cluster is self-managing. inoculant applies raw manifest files
-  # directly, so this is handed to it via `manifestFiles` rather than being
-  # re-encoded as Nix attrs.
   fluxManifests = pkgs.runCommand "cairn-flux-manifests" { } ''
     mkdir -p $out
     cp ${componentsManifest} $out/gotk-components.yaml
