@@ -1,7 +1,4 @@
 {
-  # Name of the flake input cairn's modules are resolved through. Consumer
-  # flakes use the name they gave the input ("cairn"); cairn's own in-repo
-  # examples use "self" (see modules/service/AGENTS.md).
   moduleInput ? "cairn",
   ip ? "10.10.0.11",
   vip ? ip,
@@ -31,8 +28,6 @@
       module.name = "@UnstoppableMango/apiserver";
       module.input = moduleInput;
 
-      # No loadbalancer on a single node: bind the real apiserver on 6443
-      # directly instead of the usual 6444-fronted-by-6443 split.
       roles.control-plane.machines.node1.settings = {
         inherit ip vip clusterName;
         apiserverPort = 6443;
@@ -71,8 +66,6 @@
       module.input = moduleInput;
 
       roles.node.tags.control-plane = { };
-      # Settings can't hang off `tags` (see the network instance above), so
-      # this is role-wide — fine here, since the role has one machine.
       roles.node.settings.nodeLabels = {
         "node-role.kubernetes.io/control-plane" = "";
       };

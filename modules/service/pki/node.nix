@@ -8,8 +8,6 @@ let
   topConfig = config;
   cfg = config.cluster.cairn;
 
-  # ─── Config (JSON) ───────────────────────────────────────────────────────────
-
   expiry = "${toString (cfg.pki.certValidityDays * 24)}h";
   prefix = cfg.pki.generatorPrefix;
 
@@ -50,8 +48,6 @@ let
       }
     );
 
-  # ─── Scripting ───────────────────────────────────────────────────────────────
-
   gencert = profile: csrFile: ''
     set -euo pipefail
     cfssl gencert \
@@ -71,8 +67,6 @@ let
     cp ${lib.escapeShellArg override.key} "$out/key"
   '';
 
-  # Every generator, CA included, emits a public "crt" and a secret "key";
-  # only how they're produced differs.
   mkGenerator =
     { share, key }:
     rest:
@@ -132,8 +126,6 @@ let
           }
       );
 
-  # ─── Options ─────────────────────────────────────────────────────────────────
-
   mkOverrideOption =
     subject:
     lib.mkOption {
@@ -164,8 +156,6 @@ let
     };
 in
 {
-  ###### interface
-
   options.cluster.cairn.pki = (import ./options.nix { inherit lib; }) // {
     certs = lib.mkOption {
       default = { };
@@ -236,8 +226,6 @@ in
 
     ca.override = mkOverrideOption "CA";
   };
-
-  ###### implementation
 
   config = {
     clan.core.vars.generators = {

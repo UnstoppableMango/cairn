@@ -53,7 +53,7 @@ in
     };
 
     networking.firewall.allowedTCPPorts = [
-      10250 # kubelet API
+      10250
     ];
   };
 }

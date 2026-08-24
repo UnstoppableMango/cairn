@@ -16,8 +16,6 @@
         imports = [ (import ./inventory.nix { }) ];
 
         machines.node1 = {
-          # Substitute the real target machine's platform and hardware
-          # config (e.g. from `nixos-generate-config` on the real machine).
           nixpkgs.hostPlatform = "x86_64-linux";
           fileSystems."/" = {
             device = "/dev/disk/by-label/nixos";

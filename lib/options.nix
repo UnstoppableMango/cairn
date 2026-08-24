@@ -10,8 +10,6 @@
     description = "Cluster name; used in TLS certificate subject names and cluster identifiers.";
   };
 
-  # Paired with `inventory.nodesOf`, which builds this shape from a role's
-  # `machines` attrset.
   mkNodes =
     description:
     lib.mkOption {

@@ -72,9 +72,6 @@ in
       };
     };
 
-    # -------------------------------------------------------------------------
-    # Kubernetes control plane
-    # -------------------------------------------------------------------------
     services.kubernetes = {
       roles = [ "master" ];
       masterAddress = config.cluster.cairn.vip;
@@ -117,13 +114,11 @@ in
     };
 
     networking.firewall.allowedTCPPorts = [
-      cfg.apiserverPort # kube-apiserver (internal; loadbalancer fronts the VIP externally)
-      10257 # kube-controller-manager
-      10259 # kube-scheduler
+      cfg.apiserverPort
+      10257
+      10259
     ];
 
-    # Preserved from the pre-split control-plane.nix; unrelated to any single
-    # split-out component but historically control-plane-only.
     boot.kernelModules = [ "wireguard" ];
   };
 }

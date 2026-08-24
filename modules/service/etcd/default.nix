@@ -3,10 +3,6 @@
   _class = "clan.service";
   manifest.name = "etcd";
   manifest.readme = builtins.readFile ./README.md;
-  # clan's exports mechanism only allows a fixed set of typed interfaces
-  # (endpoints, peer, networking, dataMesher, generators, auth); "endpoints"
-  # (a bare listOf str under `.hosts`) is the closest fit for "a URL per
-  # machine", so client URLs are packed as plain strings there.
   manifest.exports.out = [ "endpoints" ];
 
   roles.member = {

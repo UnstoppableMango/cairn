@@ -7,9 +7,6 @@
   roles.node = {
     description = "Wires inoculant's clusterAdmin cert so other services can bootstrap manifests, and applies node labels.";
 
-    # `nodeLabels` is only declared here: the NixOS-side option comes from
-    # inoculant's own module (imported by node.nix), so there's nothing to
-    # keep in sync via the ./options.nix split other services use.
     interface =
       { lib, ... }:
       {

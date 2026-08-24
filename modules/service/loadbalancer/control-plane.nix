@@ -18,9 +18,6 @@ in
   };
 
   config = {
-    # -------------------------------------------------------------------------
-    # keepalived — floating VIP
-    # -------------------------------------------------------------------------
     services.keepalived = {
       enable = true;
       openFirewall = true;
@@ -33,9 +30,6 @@ in
       };
     };
 
-    # -------------------------------------------------------------------------
-    # HAProxy — LB from the VIP to the apiserver nodes
-    # -------------------------------------------------------------------------
     services.haproxy = {
       enable = true;
       config = ''
@@ -65,7 +59,7 @@ in
     };
 
     networking.firewall.allowedTCPPorts = [
-      cluster.apiServerPort # HAProxy (external VIP)
+      cluster.apiServerPort
     ];
   };
 }
