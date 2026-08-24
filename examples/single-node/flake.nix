@@ -12,6 +12,10 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ cairn.flakeModules.default ];
 
+      # This example deliberately leaves `cairn.clusters` unset and writes its
+      # `inventory.instances` out by hand (./inventory.nix) to show the
+      # low-level path. examples/ha-cluster shows the same job done through
+      # the `cairn.clusters` options.
       clan = {
         imports = [ (import ./inventory.nix { }) ];
 

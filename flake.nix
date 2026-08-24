@@ -51,6 +51,9 @@
   outputs =
     inputs@{ flake-parts, ... }:
     let
+      # The only place cairn's own `inputs` enter the flake-module tree; they
+      # travel onward by lexical closure from here (see
+      # ./flakeModules/default.nix).
       cairnFlakeModule = import ./flakeModules/default.nix { cairnInputs = inputs; };
     in
     flake-parts.lib.mkFlake { inherit inputs; } (
@@ -104,6 +107,14 @@
 
             checks.consumer-services = import ./checks/consumer-services.nix {
               inherit pkgs;
+              inherit (inputs) clan-core nixpkgs;
+              cairnModules = config.flake.clan.modules;
+            };
+
+            # Coverage for the `cairn.clusters` flake-module interface, which
+            # nothing else in CI exercises (see checks/flake-module.nix).
+            checks.flake-module = import ./checks/flake-module.nix {
+              inherit lib pkgs;
               inherit (inputs) clan-core nixpkgs;
               cairnModules = config.flake.clan.modules;
             };

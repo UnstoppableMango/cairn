@@ -329,4 +329,5 @@ machine.
 1. Register in `clan.nix`: `modules."@UnstoppableMango/<name>" = import ./modules/service/<name>;`
 1. Add inventory instance in `clan.nix` with `module.input = "self"` and role assignments
 1. Tag machines appropriately in `inventory.machines` or list them explicitly
+1. Expose it through the flake module: a `services.<name>` block in `flakeModules/cluster/options.nix` and the matching instance in `flakeModules/cluster/lower.nix`. The same applies when adding an option to an existing service; consumers configure cairn through `cairn.clusters`, so a setting that isn't there is only reachable via the `settings` escape hatch
 1. Run `make check` to verify
