@@ -114,5 +114,15 @@
         "kubectl -n kube-system get deployment coredns"
         " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
     )
+
+    # inoculant's label-node container applies the inventory's nodeLabels
+    # once the bootstrap container has written the scoped kubeconfig. Grep
+    # the whole labels map rather than selecting the key by jsonpath: it
+    # contains dots and a slash, which jsonpath would need escaped through
+    # two layers of quoting.
+    node1.wait_until_succeeds(
+        "kubectl get node node1 -o jsonpath='{.metadata.labels}'"
+        " | grep -q 'node-role.kubernetes.io/control-plane'"
+    )
   '';
 }

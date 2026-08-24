@@ -205,15 +205,25 @@ inventory.instances.kubeconfig = {
 
 ### inoculant and coredns (optional)
 
-`inoculant` and `coredns` are only needed if you want cairn to bootstrap CoreDNS manifests for you.
-Both run on the control-plane machines and reuse the `admin-cert` and kubeconfig from the `kubeconfig` service above.
+`coredns` is only needed if you want cairn to bootstrap CoreDNS manifests for you.
+It runs on the control-plane machines and reuses the `admin-cert` and kubeconfig from the `kubeconfig` service above, via `inoculant`.
+
+`inoculant` is worth assigning more widely than that: its `nodeLabels` setting is how nodes get their `node-role.kubernetes.io/*` labels, which kubelet is forbidden from assigning itself.
+Setting `nodeLabels` enables inoculant on that machine on its own, so the workers below get it too even though they run no CoreDNS.
+Assign `kubeconfig` to every machine that gets `inoculant` (the `all` tag above already does).
 
 ```nix
 inventory.instances.inoculant = {
   module.name = "@UnstoppableMango/inoculant";
   module.input = "cairn";
 
-  roles.node.tags.control-plane = { };
+  roles.node.machines = cairnLib.inventory.mkMachines { } {
+    cp1.nodeLabels = { "node-role.kubernetes.io/control-plane" = ""; };
+    cp2.nodeLabels = { "node-role.kubernetes.io/control-plane" = ""; };
+    cp3.nodeLabels = { "node-role.kubernetes.io/control-plane" = ""; };
+    worker1.nodeLabels = { "node-role.kubernetes.io/worker" = ""; };
+    worker2.nodeLabels = { "node-role.kubernetes.io/worker" = ""; };
+  };
 };
 
 inventory.instances.coredns = {

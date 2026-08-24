@@ -302,7 +302,7 @@ machine.
 | `@UnstoppableMango/loadbalancer` | `control-plane` | keepalived VIP + HAProxy fronting the apiserver cluster |
 | `@UnstoppableMango/network` | `node` | Flannel CNI + kernel bridge/forwarding prerequisites |
 | `@UnstoppableMango/kubeconfig` | `node` | Installs the admin kubeconfig + kubectl |
-| `@UnstoppableMango/inoculant` | `node` | Shared inoculant `clusterAdmin` wiring for coredns/flux |
+| `@UnstoppableMango/inoculant` | `node` | Shared inoculant `clusterAdmin` wiring for coredns/flux, plus `nodeLabels` |
 | `@UnstoppableMango/coredns` | `control-plane` | Optional CoreDNS bootstrap via inoculant |
 | `@UnstoppableMango/flux` | `control-plane` | Optional Flux GitOps bootstrap via inoculant |
 
