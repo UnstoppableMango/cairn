@@ -53,6 +53,8 @@ Each entry under `modules/service/` is a clan service: a Nix module with `_class
 
 Services are intentionally split per-component rather than one monolithic service, and each depends on others being co-assigned to the same machine(s):
 
+**Service dependencies:**
+
 | Service | Roles | Depends on |
 |---|---|---|
 | `pki` | `node` | — (provides the CA; others consume it) |
