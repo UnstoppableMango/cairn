@@ -128,7 +128,7 @@ let
             {
               ip = machineIp m;
               apiserverPort = svc.apiserver.port;
-              inherit (svc.apiserver) serviceClusterIP;
+              inherit (svc.apiserver) allowPrivileged serviceClusterIP;
             }
             // clusterSettings
           );

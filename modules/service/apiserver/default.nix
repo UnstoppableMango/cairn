@@ -41,7 +41,7 @@
           cluster.cairn = {
             inherit (settings) vip clusterName;
             apiserver = {
-              inherit (settings) apiserverPort serviceClusterIP;
+              inherit (settings) allowPrivileged apiserverPort serviceClusterIP;
               advertiseAddress = settings.ip;
               nodes = cairnLib.inventory.nodesOf roles.control-plane.machines;
               etcdEndpoints = cairnLib.exports.endpointHosts clanLib {
