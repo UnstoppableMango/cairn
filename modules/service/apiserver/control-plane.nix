@@ -86,6 +86,7 @@ in
       addonManager.enable = false;
 
       apiserver = {
+        inherit (cfg) allowPrivileged;
         advertiseAddress = cfg.advertiseAddress;
         preferredAddressTypes = "InternalIP";
         securePort = cfg.apiserverPort;

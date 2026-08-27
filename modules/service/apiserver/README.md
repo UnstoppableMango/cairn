@@ -12,3 +12,8 @@ Consumes the [etcd](../etcd) service's exported client URLs (via clan's
 Needs [pki](../pki) assigned to the same machines for certificates, and
 [kubelet](../kubelet)'s `control-plane` role for the kubelet running
 alongside the apiserver.
+
+`allowPrivileged` defaults to `true`, overriding the NixOS default of
+`false`. CSI node plugins and Ceph OSD daemons hardcode
+`securityContext.privileged`, and the apiserver rejects them at admission
+without it. Set it to `false` on clusters that run no such workload.

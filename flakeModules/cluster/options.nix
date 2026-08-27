@@ -255,6 +255,16 @@ let
             default = "10.0.0.1";
             description = "First IP of the service CIDR; included in the apiserver's certificate SANs.";
           };
+
+          allowPrivileged = mkOption {
+            type = types.bool;
+            default = true;
+            description = ''
+              Whether to allow pods requesting `securityContext.privileged`.
+              CSI node plugins and Ceph OSD daemons hardcode it, and the
+              apiserver rejects them at admission without it.
+            '';
+          };
         };
 
         kubelet = {

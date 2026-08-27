@@ -168,6 +168,13 @@ let
         in
         cp1.apiServerPort == 6443 && cp1.coredns.replicas == 2 && cp1.etcd.initialClusterState == "new";
     }
+    {
+      # NixOS defaults this to false, which rejects every CSI node plugin and
+      # Ceph OSD daemon at admission. Assert the whole path, since the value
+      # only matters where it lands on services.kubernetes.
+      msg = "apiserver machines allow privileged pods by default";
+      cond = consumer.config.nixosConfigurations.cp1.config.services.kubernetes.apiserver.allowPrivileged;
+    }
   ];
 
   failures = map (e: e.msg) (lib.filter (e: !e.cond) expectations);
