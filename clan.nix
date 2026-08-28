@@ -6,6 +6,7 @@
   cairnLib,
   inoculant,
   a2b,
+  kubepkgs,
 }:
 { lib, ... }:
 let
@@ -22,7 +23,7 @@ in
     inherit cairnLib;
   };
   modules."@UnstoppableMango/kubelet" = importApply ./modules/service/kubelet {
-    inherit cairnLib;
+    inherit cairnLib kubepkgs;
   };
   modules."@UnstoppableMango/loadbalancer" = importApply ./modules/service/loadbalancer {
     inherit cairnLib;

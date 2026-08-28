@@ -35,6 +35,16 @@
       };
     };
 
+    kubepkgs = {
+      url = "github:unmango/kubepkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "treefmt-nix";
+      };
+    };
+
     inoculant = {
       url = "github:UnstoppableMango/inoculant";
       inputs = {
@@ -78,7 +88,7 @@
           imports = [
             (lib.modules.importApply ./clan.nix {
               inherit cairnLib;
-              inherit (inputs) inoculant a2b;
+              inherit (inputs) inoculant a2b kubepkgs;
             })
           ];
         };

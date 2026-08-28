@@ -124,6 +124,18 @@ let
           '';
         };
 
+        kubernetesVersion = mkOption {
+          type = types.nullOr types.str;
+          default = null;
+          example = "1.36";
+          description = ''
+            kubepkgs minor this machine runs, overriding the cluster's
+            `versions.kubernetes`. Version skew across machines must respect
+            Kubernetes' policy (see docs/UPGRADES.md); the lowering asserts
+            it where both sides are pinned.
+          '';
+        };
+
         schedulable = mkOption {
           type = types.bool;
           default = false;
@@ -514,6 +526,42 @@ let
           type = types.deferredModule;
           default = { };
           description = "NixOS configuration merged into every machine in this cluster.";
+        };
+
+        versions = {
+          kubernetes = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            example = "1.36";
+            description = ''
+              Kubernetes minor every machine runs, from kubepkgs' per-minor
+              package sets. `null` follows nixpkgs' `pkgs.kubernetes`, coupling
+              the cluster version to the nixpkgs pin. Per-machine
+              `machines.<name>.kubernetesVersion` overrides this. See
+              docs/UPGRADES.md for the upgrade procedure this drives.
+            '';
+          };
+
+          kubernetesPackage = mkOption {
+            type = types.nullOr types.package;
+            default = null;
+            description = ''
+              Fully custom combined Kubernetes package (everything
+              `services.kubernetes.package` expects, including a `pause`
+              passthru), set on every machine. Mutually exclusive with
+              `versions.kubernetes` and per-machine `kubernetesVersion`.
+            '';
+          };
+
+          etcdPackage = mkOption {
+            type = types.nullOr types.package;
+            default = null;
+            description = ''
+              etcd package for the cluster's members, pinning etcd
+              independently of nixpkgs. kubepkgs ships no etcd, so `null`
+              follows nixpkgs' `pkgs.etcd`.
+            '';
+          };
         };
 
         requireExplicitUpdate = mkOption {

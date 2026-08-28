@@ -59,6 +59,35 @@ let
 
   controlPlane = lib.attrNames (lib.filterAttrs (_: m: m.role == "control-plane") cluster.machines);
 
+  # kubepkgs minor a machine runs: its own pin, else the cluster's, else null
+  # (follow nixpkgs, whose version is unknowable here).
+  effectiveVersion =
+    m:
+    if cluster.machines.${m}.kubernetesVersion != null then
+      cluster.machines.${m}.kubernetesVersion
+    else
+      cluster.versions.kubernetes;
+
+  minorOf = v: lib.toInt (lib.elemAt (lib.splitString "." v) 1);
+
+  anyMachinePin = lib.any (m: m.kubernetesVersion != null) (lib.attrValues cluster.machines);
+
+  # Kubernetes' skew policy: a kubelet may run up to three minors behind the
+  # apiserver, never ahead. Only checkable between explicit pins; the
+  # apiserver side is the oldest pinned control-plane machine.
+  cpMinors = map minorOf (lib.filter (v: v != null) (map effectiveVersion controlPlane));
+  minCpMinor = lib.foldl' lib.min (lib.head cpMinors) cpMinors;
+  skewViolations = lib.filter (
+    m:
+    let
+      v = effectiveVersion m;
+    in
+    cluster.machines.${m}.role == "worker"
+    && v != null
+    && cpMinors != [ ]
+    && (minorOf v > minCpMinor || minorOf v < minCpMinor - 3)
+  ) (lib.attrNames cluster.machines);
+
   validate =
     x:
     throwIf (controlPlane == [ ])
@@ -69,7 +98,18 @@ let
           (
             throwIf (svc.flux.enable && svc.flux.url == null)
               "${loc}.services.flux.url must be set when flux is enabled; there is nothing to sync from otherwise."
-              x
+              (
+                throwIf
+                  (
+                    cluster.versions.kubernetesPackage != null && (cluster.versions.kubernetes != null || anyMachinePin)
+                  )
+                  "${loc}.versions.kubernetesPackage is mutually exclusive with `versions.kubernetes` and per-machine `kubernetesVersion` pins."
+                  (
+                    throwIf (skewViolations != [ ])
+                      "${loc}: worker machine(s) ${concatStringsSep ", " skewViolations} violate the Kubernetes version skew policy: a kubelet may run up to three minors behind the oldest pinned control-plane machine (1.${toString minCpMinor}), never ahead. See docs/UPGRADES.md."
+                      x
+                  )
+              )
           )
       );
 
@@ -145,9 +185,15 @@ let
               optionalAttrs (svc.kubelet.controlPlaneMachines != [ ]) {
                 # Rides alongside the apiserver, which already forwards the
                 # cluster-wide settings; only the node's own IP is needed here.
-                control-plane = mkRole svc.kubelet "kubelet" svc.kubelet.controlPlaneMachines (m: {
-                  ip = machineIp m;
-                });
+                control-plane = mkRole svc.kubelet "kubelet" svc.kubelet.controlPlaneMachines (
+                  m:
+                  {
+                    ip = machineIp m;
+                  }
+                  // optionalAttrs (effectiveVersion m != null) {
+                    kubernetesVersion = effectiveVersion m;
+                  }
+                );
               }
               // optionalAttrs (svc.kubelet.workerMachines != [ ]) {
                 worker = mkRole svc.kubelet "kubelet" svc.kubelet.workerMachines (
@@ -156,6 +202,9 @@ let
                     ip = machineIp m;
                   }
                   // clusterSettings
+                  // optionalAttrs (effectiveVersion m != null) {
+                    kubernetesVersion = effectiveVersion m;
+                  }
                 );
               };
           }
@@ -270,6 +319,12 @@ let
       }
       ++ optional (elem mname etcdMachines) {
         cluster.cairn.etcd.initialClusterState = svc.etcd.initialClusterState;
+      }
+      ++ optional (cluster.versions.kubernetesPackage != null && elem mname kubeletMachines) {
+        services.kubernetes.package = cluster.versions.kubernetesPackage;
+      }
+      ++ optional (cluster.versions.etcdPackage != null && elem mname etcdMachines) {
+        services.etcd.package = cluster.versions.etcdPackage;
       }
       ++ optional (elem mname corednsMachines) {
         cluster.cairn.coredns = corednsConfig;

@@ -238,6 +238,35 @@
         "type": "github"
       }
     },
+    "kubepkgs": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "systems": [
+          "systems"
+        ],
+        "treefmt-nix": [
+          "treefmt-nix"
+        ]
+      },
+      "locked": {
+        "lastModified": 1786372879,
+        "narHash": "sha256-f5dexxsYnOC+gje6RJX5hXgzKO3BIolgjpWLH7Q2vCM=",
+        "owner": "unmango",
+        "repo": "kubepkgs",
+        "rev": "5025cf48b1480246b71ccb894b8dfdcae36e6a61",
+        "type": "github"
+      },
+      "original": {
+        "owner": "unmango",
+        "repo": "kubepkgs",
+        "type": "github"
+      }
+    },
     "mangopkgs": {
       "inputs": {
         "flake-parts": [
@@ -422,6 +451,7 @@
         "clan-core": "clan-core",
         "flake-parts": "flake-parts",
         "inoculant": "inoculant",
+        "kubepkgs": "kubepkgs",
         "nixpkgs": "nixpkgs",
         "systems": "systems",
         "treefmt-nix": "treefmt-nix"

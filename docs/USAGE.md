@@ -155,6 +155,19 @@ The rest of the surface, all optional:
 
 `kubelet` is the one service with two machine lists, `controlPlaneMachines` and `workerMachines`, since its two roles take different settings.
 
+### Kubernetes version
+
+By default the cluster runs whatever Kubernetes version the nixpkgs pin resolves to.
+`versions.kubernetes` pins a [kubepkgs](https://github.com/unmango/kubepkgs) minor instead, decoupling the cluster version from nixpkgs:
+
+```nix
+versions.kubernetes = "1.36";
+```
+
+Every component on every machine moves together; a per-machine `machines.<name>.kubernetesVersion` overrides the cluster value, and the lowering asserts the Kubernetes version skew policy between pinned machines.
+`versions.kubernetesPackage` and `versions.etcdPackage` are package-level escape hatches for a fully custom build.
+[`docs/UPGRADES.md`](UPGRADES.md) covers the upgrade procedure built on these knobs.
+
 ### Machine configuration
 
 Each machine's own NixOS configuration (hardware, filesystems, bootloader) goes in `machines.<name>.nixos`, and anything common to the whole cluster in the cluster's own `nixos`:

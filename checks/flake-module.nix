@@ -142,6 +142,18 @@ let
         && (settingsOf "loadbalancer" "control-plane" "cp3").keepalivedPriority == 50;
     }
     {
+      msg = "the pinned Kubernetes minor reaches both kubelet roles";
+      cond =
+        (settingsOf "kubelet" "worker" "worker1").kubernetesVersion == "1.36"
+        && (settingsOf "kubelet" "control-plane" "cp1").kubernetesVersion == "1.36";
+    }
+    {
+      # The kubepkgs-built symlinkJoin lands as the machine's combined
+      # Kubernetes package. Evaluation-only: the derivation is never built.
+      msg = "the version pin produces the kubepkgs package set";
+      cond = lib.hasInfix "1.36" consumer.config.nixosConfigurations.cp1.config.services.kubernetes.package.name;
+    }
+    {
       msg = "apiserver health checking reaches the loadbalancer and defaults on";
       cond = (settingsOf "loadbalancer" "control-plane" "cp1").healthCheck.enable;
     }
