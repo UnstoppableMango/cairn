@@ -61,6 +61,8 @@
         cairnLib = import ./lib { inherit lib; };
       in
       {
+        systems = import inputs.systems;
+
         imports = with inputs; [
           treefmt-nix.flakeModule
           flake-parts.flakeModules.modules
