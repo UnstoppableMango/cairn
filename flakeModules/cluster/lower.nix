@@ -215,6 +215,13 @@ let
   etcdMachines = assigned svc.etcd.enable svc.etcd.machines;
   corednsMachines = assigned svc.coredns.enable svc.coredns.machines;
 
+  # kubelet/common.nix declares `cluster.cairn.kubelet.*`, and both roles
+  # import it, so this covers control-plane and worker machines alike.
+  kubeletMachines = lib.unique (
+    assigned svc.kubelet.enable svc.kubelet.controlPlaneMachines
+    ++ assigned svc.kubelet.enable svc.kubelet.workerMachines
+  );
+
   # Machines whose role modules import modules/service/cluster.nix, and so
   # have `cluster.cairn.apiServerPort` declared. pki/node.nix and
   # kubelet/common.nix (the control-plane kubelet) deliberately don't, so
@@ -261,6 +268,9 @@ let
       }
       ++ optional (elem mname corednsMachines) {
         cluster.cairn.coredns = corednsConfig;
+      }
+      ++ optional (elem mname kubeletMachines) {
+        cluster.cairn.kubelet.rootDir = svc.kubelet.rootDir;
       }
     );
   };

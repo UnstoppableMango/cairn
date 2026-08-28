@@ -281,6 +281,17 @@ let
             defaultText = "every worker machine";
             description = "Machines running a standalone (node-only) kubelet.";
           };
+
+          rootDir = mkOption {
+            type = types.path;
+            default = "/var/lib/kubelet";
+            description = ''
+              kubelet's `--root-dir`. The upstream default, and the path CSI
+              drivers hardcode as `hostPath` mounts. nixpkgs points it at
+              `services.kubernetes.dataDir` instead, which no CSI driver
+              expects.
+            '';
+          };
         };
 
         loadbalancer = {
