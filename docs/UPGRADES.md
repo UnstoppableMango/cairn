@@ -20,10 +20,14 @@ None of the phases below are implemented yet.
 - **Inoculant stays dumb.**
   It already carries in-cluster manifest migrations (CoreDNS, flux) by re-firing when its manifest hash changes during a normal switch.
   It gains no leases, waits, or ordering; it is per-node, one-shot, and has no view of the rollout.
-- **Node-local coordination via activation scripts or pre-switch inhibitors is rejected as the primary mechanism.**
-  A worker-only drain hook survives as an optional hardening phase, detailed below.
-- **An in-cluster pull operator is rejected.**
-  Watching a flake ref from inside the cluster inverts the trust model, duplicates clan's transport, and cannot safely upgrade the control plane it runs on.
+- **Node-local coordination via activation scripts or pre-switch inhibitors is rejected.**
+  The reasons are detailed below.
+- **A CRD-driven clan operator is the end state.**
+  A controller in the cluster reconciles a `ClusterUpgrade` resource by running the same gated sequence as the CLI, which turns a version bump merged to git into a hands-off fleet rollout via flux.
+  The CLI ships first and de-risks the gating logic; the operator hosts that logic later.
+- **Flake-ref-watching pull designs stay rejected.**
+  An operator that watches a flake ref and builds in-cluster duplicates clan's transport and needs a nix store and evaluation inside the cluster.
+  The operator above avoids both by reusing clan's push pipeline: builds happen on the target machine, and the rollout plan arrives as evaluated data.
 
 ## Why Not the Alternatives
 
@@ -47,6 +51,14 @@ It fails on four points:
 1. Bootstrap deadlocks.
    The first install has no apiserver to acquire a lease from, so every inhibitor needs a "cluster not up yet" escape hatch, which is precisely the hole that makes the guarantee soft.
 1. A drain can take minutes, and a multi-minute block inside `switch-to-configuration` is miserable to observe and interacts badly with clan's single activation retry.
+
+The clan operator supersedes the one salvageable piece of this design (a worker-only self-drain hook): quorum logic and drain ordering live in one cluster-aware controller instead of node-local scripts, and nothing blocks inside activation.
+
+### In-cluster pull operator
+
+The rejection is specific to designs that watch a flake ref and build inside the cluster.
+Those invert the trust model (the cluster fetches its own configuration, so it needs deploy keys and ref plumbing), duplicate clan's transport, and require a nix store and evaluation in a pod.
+The clan operator in phase 4 shares none of that: it consumes an evaluated plan applied through inoculant and drives clan's existing build-on-target pipeline.
 
 ## Version Model
 
@@ -135,15 +147,31 @@ The run:
 Flags: `--only <machine>` to resume a rollout mid-way, `--skip-drain`, `--dry-run` to print the plan and gates without acting, and `--rollback <machine>`.
 Any gate failure stops the rollout before the next machine and prints the observed state.
 
+The gate and sequencing logic is written to be hosted by the phase 4 operator later: shared shape, not shared code.
+Shell is right for the CLI; the operator reimplements the same loop in Go.
+
 ### Phase 3: runbook
 
 The manual procedure in this document, kept in sync with the orchestrator.
 
-### Phase 4 (optional): worker drain hooks
+### Phase 4: the clan operator
 
-If unattended or accidental single-machine updates cause real incidents, a `modules/service/upgrade/` clan service can add, on workers only, a pre-switch check that self-cordons and drains using the node's admin kubeconfig, and a post-switch oneshot that waits for self-Ready and uncordons.
-Workers only, because they carry no quorum logic, and with a "no apiserver reachable" pass-through for bootstrap.
-This is defense in depth for the unorchestrated path, not a requirement of the design.
+A controller running in the cluster, delivered by inoculant the same way flux is, reconciling a `ClusterUpgrade` custom resource.
+
+- `spec` carries the target version and the ordered machine list, generated from the same eval data as the cluster: the `cairn-upgrade-plan` JSON becomes the CRD spec and is applied through inoculant, so the operator never evaluates nix and never sees the flake.
+- The reconcile loop is the phase 2 sequence hosted in a controller: pre-gate, `clan machines update <machine>`, post-gate, advance a status cursor.
+  Conditions and events make the rollout resumable and observable through `kubectl get clusterupgrade`.
+- This closes the GitOps loop: a version bump merges to git, flux applies the updated manifests, the operator rolls the fleet.
+  No workstation in the loop, which the CLI can never offer.
+- The coordination primitives the CLI reimplements in shell (leases, watches, retries with backoff, node health) are native here.
+- The self-upgrade paradox is handled the way Cluster API's control-plane provider handles it: leader election moves the operator off the machine being updated, and clan's boot-first activation bounds the damage of a failed switch.
+  Builds happen on the target per clan's pipeline, so the operator pod needs no nix store.
+
+**Open design problem: credential blast radius.**
+Driving `clan machines update` requires root SSH to every machine and the vars material that otherwise never leaves the operator's workstation.
+Placing that in a pod is the strongest argument against the operator and the reason it is the last phase.
+The candidate mitigation is a dedicated key pair whose public key is constrained with a `command=` forced invocation of the update entry point, combined with pre-generated vars so no secret generation happens in-cluster.
+This document does not resolve it; the operator does not ship until it is resolved.
 
 ## Rollback
 
@@ -185,7 +213,8 @@ It assumes Phase 0 has landed.
 | Preventing parallel quorum loss | pure nix (`requireExplicitUpdate`) | One line, total coverage |
 | VIP and backend health | pure nix (HAProxy, keepalived config) | Static config, no runtime logic needed |
 | Version selection and skew guards | pure nix (kubepkgs + options + assertions) | Eval-time facts; exports work here |
-| Cross-machine ordering, health gates, drain | new tool (flake app) | Runtime cluster state; clan has no primitive for it and should not grow one |
+| Cross-machine ordering, health gates, drain | new tool (flake app, later hosted in the operator) | Runtime cluster state; clan has no primitive for it and should not grow one |
+| GitOps-driven rollouts | clan operator + flux + inoculant | Closes the git-to-fleet loop; the CLI cannot |
 | In-cluster manifests during upgrade | inoculant, unchanged | Content-addressed re-fire already does this; it must not become a coordinator |
 | Rollback | nix generations + git | Already present; the tool only fronts it |
 
