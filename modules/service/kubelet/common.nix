@@ -8,9 +8,32 @@ let
   pki = config.cluster.cairn.pki;
 in
 {
-  options.cluster.cairn.kubelet.advertiseAddress = lib.mkOption {
-    type = lib.types.str;
-    description = "IP address this node advertises for kubelet (included in the kubelet server certificate's SAN).";
+  options.cluster.cairn.kubelet = {
+    advertiseAddress = lib.mkOption {
+      type = lib.types.str;
+      description = "IP address this node advertises for kubelet (included in the kubelet server certificate's SAN).";
+    };
+
+    rootDir = lib.mkOption {
+      type = lib.types.path;
+      default = "/var/lib/kubelet";
+      description = ''
+        kubelet's `--root-dir`, where it keeps per-pod volume state and the
+        CSI plugin and registration sockets.
+
+        `/var/lib/kubelet` is the upstream default and the path CSI drivers
+        hardcode as `hostPath` mounts (`plugins`, `plugins_registry`, `pods`),
+        with a `Directory` type that fails rather than creating what's
+        missing. nixpkgs instead points `--root-dir` at
+        `services.kubernetes.dataDir`, which defaults to
+        `/var/lib/kubernetes`, so a stock NixOS cluster cannot run a CSI
+        driver until this is set back.
+
+        Point it at `services.kubernetes.dataDir` on a cluster that already
+        has live pod state under the nixpkgs path and cannot take the
+        relocation.
+      '';
+    };
   };
 
   config = {
@@ -38,6 +61,10 @@ in
       # but cert CNs are generated from the short hostname ("system:node:node1").
       # Node Authorizer rejects: cert subject "node1" cannot read node "node1.example.com".
       hostname = config.networking.hostName;
+      # nixpkgs hardcodes --root-dir=${services.kubernetes.dataDir} with no
+      # option of its own, and emits it ahead of extraOpts. A second --root-dir
+      # wins, since pflag overwrites a scalar flag on repeat.
+      extraOpts = "--root-dir=${cfg.rootDir}";
       clientCaFile = pki.ca.cert;
       tlsCertFile = pki.certs."kubelet-cert".cert;
       tlsKeyFile = pki.certs."kubelet-cert".key;
