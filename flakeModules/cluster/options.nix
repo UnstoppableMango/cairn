@@ -324,6 +324,10 @@ let
             default = 50;
             description = "Keepalived VRRP virtual router ID (1-255), unique per subnet.";
           };
+
+          # Same declaration as the service interface, so defaults and types
+          # cannot drift between the two surfaces.
+          inherit (import ../../modules/service/loadbalancer/options.nix { inherit lib; }) healthCheck;
         };
 
         network = {
@@ -510,6 +514,17 @@ let
           type = types.deferredModule;
           default = { };
           description = "NixOS configuration merged into every machine in this cluster.";
+        };
+
+        requireExplicitUpdate = mkOption {
+          type = types.bool;
+          default = true;
+          description = ''
+            Exclude this cluster's machines from a bulk `clan machines update`,
+            which deploys every machine in parallel and so restarts every etcd
+            member and apiserver at once. With this set, machines only update
+            when named explicitly, one at a time.
+          '';
         };
 
         extraInstances = mkOption {

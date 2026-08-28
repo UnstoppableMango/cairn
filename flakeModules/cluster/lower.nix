@@ -167,7 +167,7 @@ let
             m:
             {
               inherit (cluster) vip;
-              inherit (svc.loadbalancer) interface virtualRouterId;
+              inherit (svc.loadbalancer) interface virtualRouterId healthCheck;
             }
             // optionalAttrs (cluster.machines.${m}.keepalivedPriority != null) {
               inherit (cluster.machines.${m}) keepalivedPriority;
@@ -248,10 +248,15 @@ let
     ];
 
     config = lib.mkMerge (
+      # A bulk `clan machines update` deploys every machine in parallel,
+      # restarting every etcd member and apiserver at once.
+      optional cluster.requireExplicitUpdate {
+        clan.core.deployment.requireExplicitUpdate = true;
+      }
       # nixpkgs' kubernetes module taints a master-only machine
       # unschedulable; a cluster with no separate workers needs its
       # control-plane machines to also be nodes.
-      optional (m.schedulable && m.role == "control-plane") {
+      ++ optional (m.schedulable && m.role == "control-plane") {
         services.kubernetes.roles = [ "node" ];
       }
       ++ optional (elem mname clusterScoped) {

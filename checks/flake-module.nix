@@ -142,6 +142,26 @@ let
         && (settingsOf "loadbalancer" "control-plane" "cp3").keepalivedPriority == 50;
     }
     {
+      msg = "apiserver health checking reaches the loadbalancer and defaults on";
+      cond = (settingsOf "loadbalancer" "control-plane" "cp1").healthCheck.enable;
+    }
+    {
+      msg = "HAProxy probes backend readiness rather than TCP reachability";
+      cond = lib.hasInfix "httpchk GET /readyz" consumer.config.nixosConfigurations.cp1.config.services.haproxy.config;
+    }
+    {
+      msg = "keepalived tracks local apiserver readiness for the VIP election";
+      cond =
+        consumer.config.nixosConfigurations.cp1.config.services.keepalived.vrrpInstances.VI_K8S.trackScripts
+        == [ "check_apiserver" ];
+    }
+    {
+      msg = "cluster machines are excluded from bulk updates by default";
+      cond =
+        consumer.config.nixosConfigurations.cp1.config.clan.core.deployment.requireExplicitUpdate
+        && consumer.config.nixosConfigurations.worker1.config.clan.core.deployment.requireExplicitUpdate;
+    }
+    {
       msg = "node labels default from each machine's role";
       cond =
         (settingsOf "inoculant" "node" "cp1").nodeLabels ? "node-role.kubernetes.io/control-plane"
