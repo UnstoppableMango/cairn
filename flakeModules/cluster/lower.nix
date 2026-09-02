@@ -272,12 +272,11 @@ let
   );
 
   # Machines whose role modules import modules/service/cluster.nix, and so
-  # have `cluster.cairn.apiServerPort` declared. pki/node.nix and
-  # kubelet/common.nix (the control-plane kubelet) deliberately don't, so
-  # neither appears here.
+  # have `cluster.cairn.apiServerPort` declared. pki/node.nix,
+  # kubelet/common.nix (the control-plane kubelet) and etcd/member.nix
+  # deliberately don't, so none of them appears here.
   clusterScoped =
     assigned svc.apiserver.enable svc.apiserver.machines
-    ++ etcdMachines
     ++ assigned svc.kubelet.enable svc.kubelet.workerMachines
     ++ assigned svc.loadbalancer.enable svc.loadbalancer.machines
     ++ assigned svc.network.enable svc.network.machines

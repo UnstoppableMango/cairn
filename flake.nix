@@ -130,6 +130,15 @@
               cairnModules = config.flake.clan.modules;
             };
 
+            # Coverage for a machine running etcd without the apiserver, and
+            # the reverse, which both examples co-locate (see
+            # checks/split-topology.nix).
+            checks.split-topology = import ./checks/split-topology.nix {
+              inherit pkgs;
+              inherit (inputs) clan-core nixpkgs;
+              cairnModules = config.flake.clan.modules;
+            };
+
             treefmt = {
               programs = {
                 nixfmt.enable = true;

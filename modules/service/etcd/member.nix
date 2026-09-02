@@ -17,7 +17,10 @@ let
   etcdPeerEndpoints = map (n: "${n.name}=https://${n.ip}:2380") cfg.nodes;
 in
 {
-  imports = [ ../cluster.nix ];
+  imports = [
+    ../identity.nix
+    ../etcd-client.nix
+  ];
 
   options.cluster.cairn.etcd = {
     nodes = cairnLib.options.mkNodes "All etcd member nodes with their names and IPs.";
@@ -52,11 +55,6 @@ in
         share = false;
         profile = "peer";
         owner = "etcd";
-      };
-      etcd-client-cert = {
-        cn = "kube-apiserver-etcd-client";
-        profile = "client";
-        owner = "kubernetes";
       };
     };
 
