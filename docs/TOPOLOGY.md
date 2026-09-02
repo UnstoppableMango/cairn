@@ -4,8 +4,8 @@ This document is the design for deciding which machines run which cairn services
 It replaces the model where a machine's `role` implies a fixed bundle of services with one where a machine declares the services it runs.
 The motivating case is running etcd on its own machines, but the goal is the general one: any machine runs any combination.
 
-Status: phases 1 and 2 are implemented.
-Phase 0 and phases 3 through 6 are design.
+Status: phases 1 through 3 are implemented.
+Phase 0 and phases 4 through 6 are design.
 
 ## The Problem
 
@@ -119,7 +119,8 @@ Going through the VIP on a machine that also runs an apiserver costs one hop thr
 ### coredns reads the local apiserver's NixOS config
 
 `modules/service/coredns/control-plane.nix` derives the DNS ClusterIP from `config.services.kubernetes.apiserver.serviceClusterIpRange`, and `modules/service/coredns/default.nix` takes its node list from its own role membership.
-Both become explicit settings lowered from the cluster option tree, which is where the service CIDR is already known.
+Both become explicit settings lowered from the cluster option tree, with the node list defaulting to the assigned machines so a hand-written inventory keeps working.
+The kubelet settings CoreDNS writes, the seeded image and `clusterDns`, are gated on a kubelet actually running there.
 
 ### Export selection ignores the instance
 
@@ -183,6 +184,8 @@ Implemented.
 Colocation is read from the machine's own `services.kubernetes.apiserver.enable`, so the lowering and the option tree are untouched.
 
 ### Phase 3: coredns explicit ClusterIP and node list
+
+Implemented.
 
 `modules/service/coredns/`.
 

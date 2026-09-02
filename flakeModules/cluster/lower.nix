@@ -285,6 +285,10 @@ let
   corednsConfig = {
     inherit (svc.coredns) clusterDomain replicas;
   }
+  // optionalAttrs (svc.coredns.nodeNames != null) { inherit (svc.coredns) nodeNames; }
+  // optionalAttrs (svc.coredns.serviceClusterIpRange != null) {
+    inherit (svc.coredns) serviceClusterIpRange;
+  }
   // optionalAttrs (svc.coredns.clusterIp != null) { inherit (svc.coredns) clusterIp; }
   // optionalAttrs (svc.coredns.corefile != null) { inherit (svc.coredns) corefile; }
   // optionalAttrs (svc.coredns.image != null) { inherit (svc.coredns) image; };
