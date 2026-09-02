@@ -9,12 +9,19 @@ let
   cluster = config.cluster.cairn;
   hc = cfg.healthCheck;
 
-  # Every backend advertises the same apiserver port, so the local apiserver
-  # listens where the first backend does.
-  localApiserverPort =
+  # The keepalived track script asks whether *this* machine's apiserver is
+  # ready, so it is only meaningful where one runs. A loadbalancer machine
+  # without an apiserver would fail the probe forever and hand its VIP
+  # priority away permanently.
+  apiserverColocated = config.services.kubernetes.apiserver.enable;
+  localApiserverPort = toString config.services.kubernetes.apiserver.securePort;
+
+  trackApiserver = hc.enable && apiserverColocated;
+
+  backends =
     lib.throwIf (cfg.apiserverBackends == [ ])
-      "cluster.cairn.loadbalancer.healthCheck.enable requires cluster.cairn.loadbalancer.apiserverBackends to be non-empty: the keepalived probe reads the apiserver's port off a backend entry. Co-assign the apiserver service so its endpoints export reaches the loadbalancer, or set healthCheck.enable = false."
-      (lib.last (lib.splitString ":" (lib.head cfg.apiserverBackends)));
+      "cluster.cairn.loadbalancer.apiserverBackends is empty, so HAProxy would front no apiserver at all. Assign the apiserver service somewhere in the cluster so its endpoints export reaches this machine."
+      cfg.apiserverBackends;
 
   backendCheck =
     if hc.enable then
@@ -46,10 +53,10 @@ in
         virtualRouterId = cfg.virtualRouterId;
         priority = cfg.keepalivedPriority;
         virtualIps = [ { addr = "${cluster.vip}/24"; } ];
-        trackScripts = lib.optional hc.enable "check_apiserver";
+        trackScripts = lib.optional trackApiserver "check_apiserver";
       };
 
-      vrrpScripts = lib.mkIf hc.enable {
+      vrrpScripts = lib.mkIf trackApiserver {
         check_apiserver = {
           # The apiserver's cert isn't checked: this asks "is the local
           # apiserver ready", and TLS identity is the client's concern.
@@ -86,7 +93,7 @@ in
           ${backendCheck}
           ${lib.concatMapStringsSep "\n          " (
             backend: "server ${backend} ${backend} ${serverFlags}"
-          ) cfg.apiserverBackends}
+          ) backends}
       '';
     };
 
