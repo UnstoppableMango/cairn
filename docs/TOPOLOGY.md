@@ -4,8 +4,8 @@ This document is the design for deciding which machines run which cairn services
 It replaces the model where a machine's `role` implies a fixed bundle of services with one where a machine declares the services it runs.
 The motivating case is running etcd on its own machines, but the goal is the general one: any machine runs any combination.
 
-Status: phases 1 through 3 are implemented.
-Phase 0 and phases 4 through 6 are design.
+Status: phases 1 through 4 are implemented.
+Phase 0 and phases 5 and 6 are design.
 
 ## The Problem
 
@@ -190,6 +190,8 @@ Implemented.
 `modules/service/coredns/`.
 
 ### Phase 4: kubelet role collapse
+
+Implemented.
 
 `modules/service/kubelet/`, plus the `services.kubelet.machines` change in the option tree.
 The two clan roles become one; this is visible to a consumer writing a hand-written inventory, so it is the one non-option-tree phase with a migration note.
