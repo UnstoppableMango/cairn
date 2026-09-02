@@ -23,7 +23,10 @@ let
   ];
 in
 {
-  imports = [ ../cluster.nix ];
+  imports = [
+    ../cluster.nix
+    ../etcd-client.nix
+  ];
 
   options.cluster.cairn.apiserver = (import ./options.nix { inherit lib; }) // {
     nodes = cairnLib.options.mkNodes "All apiserver control-plane nodes with their names and IPs.";

@@ -4,8 +4,8 @@ This document is the design for deciding which machines run which cairn services
 It replaces the model where a machine's `role` implies a fixed bundle of services with one where a machine declares the services it runs.
 The motivating case is running etcd on its own machines, but the goal is the general one: any machine runs any combination.
 
-Status: design.
-None of the phases below are implemented.
+Status: phase 1 is implemented.
+Phases 0 and 2 through 6 are design.
 
 ## The Problem
 
@@ -103,7 +103,8 @@ The keepalived track script only ever answered the narrower question of whether 
 On a machine that runs etcd alone, `vip` has no definition, and any module that touches `apiServerURL` there fails.
 The lowering compounds this by listing etcd machines in its hand-maintained "cluster scoped" set purely because of that import.
 
-etcd drops the import and takes `clusterName` from `cairnLib.options` directly.
+`cluster.nix` splits: `modules/service/identity.nix` declares `clusterName` alone, `cluster.nix` imports it and keeps the apiserver-facing facts, and etcd imports only the former.
+Declaring `clusterName` inside the etcd role module instead would collide with `cluster.nix` on any machine running both etcd and the apiserver, since the module system rejects two declarations of one option.
 
 ### The kubelet's two roles differ by co-location
 
@@ -166,6 +167,8 @@ Phase 5 is the breaking one and depends on the rest.
 No surface change.
 
 ### Phase 1: the shared etcd client certificate
+
+Implemented.
 
 `modules/service/etcd-client.nix`, imported by the etcd member and apiserver role modules, plus dropping etcd's `modules/service/cluster.nix` import.
 After this phase a machine can run etcd alone, and a machine can run the apiserver without etcd.

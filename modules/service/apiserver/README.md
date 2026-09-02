@@ -11,7 +11,9 @@ Consumes the [etcd](../etcd) service's exported client URLs (via clan's
 
 Needs [pki](../pki) assigned to the same machines for certificates, and
 [kubelet](../kubelet)'s `control-plane` role for the kubelet running
-alongside the apiserver.
+alongside the apiserver. It does not need an etcd member on its own machine:
+it dials etcd over the network, and the client cert it authenticates with is
+declared in `../etcd-client.nix`, shared with the [etcd](../etcd) role.
 
 `allowPrivileged` defaults to `true`, overriding the NixOS default of
 `false`. CSI node plugins and Ceph OSD daemons hardcode

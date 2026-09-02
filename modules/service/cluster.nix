@@ -5,8 +5,10 @@ let
   cairnOptions = import ../../lib/options.nix { inherit lib; };
 in
 {
+  imports = [ ./identity.nix ];
+
   options.cluster.cairn = {
-    inherit (cairnOptions) vip clusterName;
+    inherit (cairnOptions) vip;
 
     apiServerPort = lib.mkOption {
       type = lib.types.port;

@@ -10,7 +10,9 @@
   The option tree is inert when unused, so consumers hand-writing an inventory import the same module and leave `cairn.clusters` empty.
 - `modules/service/<name>/` — one clan service per Kubernetes cluster component (`default.nix`, role files, `README.md`).
 - `lib/` — small Nix helper library exposed as `flake.lib`: `kubeconfig.mkKubeconfig` for generating kubeconfig YAML, `options` for option definitions reused across service interfaces (`vip`/`clusterName`, `mkNodes`), `inventory` for inventory-shaped helpers (`mkMachines` merges shared per-role settings across per-machine entries; `nodesOf` turns a role's `machines` into the `mkNodes` shape), and `exports.endpointHosts` for reading another service's `endpoints` export.
-- `modules/service/cluster.nix` — cluster-wide facts every service agrees on (`cluster.cairn.{vip,clusterName,apiServerPort,apiServerURL}`), declared once and imported by the role modules that need them.
+- `modules/service/cluster.nix` — the facts a service needs to reach the apiserver (`cluster.cairn.{vip,apiServerPort,apiServerURL}`), declared once and imported by the role modules that need them.
+  `modules/service/identity.nix` holds `cluster.cairn.clusterName` on its own, imported by `cluster.nix` and directly by roles that name the cluster without reaching its API, currently etcd.
+  `modules/service/etcd-client.nix` declares the etcd client cert shared by the etcd and apiserver roles.
 - `examples/single-node/` — a full, runnable consumer flake (its own `flake.nix` + `inventory.nix`) demonstrating a minimal one-machine cluster with a hand-written inventory (`cairn.clusters` left unset), plus a NixOS VM test (`tests/vm/default.nix`) that boots it and smoke-tests `kubectl`.
 - `examples/ha-cluster/` — the same job done through the option tree: a 5-node HA cluster as one `cairn.clusters.example` value (`cluster.nix`), matching the topology in `docs/USAGE.md`.
   The spec lives apart from its `flake.nix` so `checks/flake-module.nix` can evaluate the exact thing the example ships.
