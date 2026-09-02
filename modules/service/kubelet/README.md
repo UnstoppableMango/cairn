@@ -16,3 +16,14 @@ default on both the `master` and `node` NixOS kubernetes roles), using the
 
 Needs [pki](../pki) and [network](../network) assigned to the same
 machines.
+
+## Kubernetes version
+
+Both roles accept `kubernetesVersion`, a kubepkgs minor such as `"1.36"`.
+It sets `services.kubernetes.package` to a join of kubepkgs' per-component
+binaries for that minor, moving every Kubernetes component on the machine
+together; the apiserver, controller-manager, scheduler and proxy all run
+from the same package. `null` (the default) follows nixpkgs'
+`pkgs.kubernetes`. The kubelet service carries this setting because it is
+the one service assigned to every machine. See `docs/UPGRADES.md` for the
+rolling-upgrade procedure built on it.

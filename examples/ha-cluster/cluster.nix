@@ -21,6 +21,11 @@
   # machines, since keepalived uses VRRP.
   vip = "10.10.0.10";
 
+  # Pin the Kubernetes minor via kubepkgs rather than following whatever
+  # nixpkgs is locked to; upgrades then step this one minor at a time (see
+  # docs/UPGRADES.md).
+  versions.kubernetes = "1.36";
+
   machines = {
     cp1 = {
       role = "control-plane";

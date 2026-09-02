@@ -29,7 +29,12 @@
           cluster.cairn = {
             inherit (settings) vip;
             loadbalancer = {
-              inherit (settings) interface virtualRouterId keepalivedPriority;
+              inherit (settings)
+                interface
+                virtualRouterId
+                keepalivedPriority
+                healthCheck
+                ;
               apiserverBackends = cairnLib.exports.endpointHosts clanLib {
                 service = "apiserver";
                 role = "control-plane";

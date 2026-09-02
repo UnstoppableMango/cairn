@@ -35,6 +35,16 @@
       };
     };
 
+    kubepkgs = {
+      url = "github:unmango/kubepkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "treefmt-nix";
+      };
+    };
+
     inoculant = {
       url = "github:UnstoppableMango/inoculant";
       inputs = {
@@ -61,6 +71,8 @@
         cairnLib = import ./lib { inherit lib; };
       in
       {
+        systems = import inputs.systems;
+
         imports = with inputs; [
           treefmt-nix.flakeModule
           flake-parts.flakeModules.modules
@@ -76,7 +88,7 @@
           imports = [
             (lib.modules.importApply ./clan.nix {
               inherit cairnLib;
-              inherit (inputs) inoculant a2b;
+              inherit (inputs) inoculant a2b kubepkgs;
             })
           ];
         };

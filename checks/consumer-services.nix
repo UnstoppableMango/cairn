@@ -1,9 +1,10 @@
-# Regression check for #37: `inoculant` and `flux` are the only two services
-# that close over cairn's *own* flake inputs (`inoculant` / `a2b`). If those
-# are reached through a module argument that only exists inside cairn's own
-# flake.nix (e.g. an `inputs` specialArg), resolving either service blows up
-# with `error: attribute 'inputs' missing`, but only once a machine is
-# actually assigned one of the two roles, since `importApply` is lazy.
+# Regression check for #37: `inoculant`, `flux` and `kubelet` are the
+# services that close over cairn's *own* flake inputs (`inoculant` / `a2b` /
+# `kubepkgs`). If those are reached through a module argument that only
+# exists inside cairn's own flake.nix (e.g. an `inputs` specialArg),
+# resolving the service blows up with `error: attribute 'inputs' missing`,
+# but only once a machine is actually assigned one of the roles, since
+# `importApply` is lazy.
 #
 # This is an *evaluation-only* check rather than extra roles on the
 # single-node VM test: `flux` needs a real GitOps git repository to sync
@@ -49,6 +50,9 @@ let
 
   probe = {
     inoculant = builtins.unsafeDiscardStringContext "${cfg.pkg}";
+    # The single-node example pins no version, so this must still be
+    # nixpkgs' kubernetes; forcing it walks kubelet's version module.
+    kubelet = builtins.unsafeDiscardStringContext "${node1.services.kubernetes.package}";
     flux =
       assert cfg.manifestFiles != [ ];
       map (drv: builtins.unsafeDiscardStringContext "${drv}") cfg.manifestFiles;
