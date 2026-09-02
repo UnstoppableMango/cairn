@@ -22,6 +22,12 @@ than reachability:
   whose keepalived is down. Keep the weight larger than the priority gap
   between any two machines.
 
+The track script only runs where an apiserver is assigned to the same
+machine, since it asks whether *this* machine's apiserver is ready. A
+loadbalancer machine that fronts apiservers it does not run gets HAProxy's
+backend checks and a priority-only VIP election, which is the correct
+behaviour: there is no local apiserver whose health should move the VIP.
+
 `healthCheck.interval`, `.fall` and `.rise` tune the keepalived probe cadence.
 Disabling the health check falls back to plain TCP checks and a
 priority-only VIP election.

@@ -4,8 +4,8 @@ This document is the design for deciding which machines run which cairn services
 It replaces the model where a machine's `role` implies a fixed bundle of services with one where a machine declares the services it runs.
 The motivating case is running etcd on its own machines, but the goal is the general one: any machine runs any combination.
 
-Status: phase 1 is implemented.
-Phases 0 and 2 through 6 are design.
+Status: phases 1 and 2 are implemented.
+Phase 0 and phases 3 through 6 are design.
 
 ## The Problem
 
@@ -93,7 +93,8 @@ This is the assumption that makes a split topology fail to evaluate at all, so i
 `modules/service/loadbalancer/control-plane.nix` derives the local apiserver's port from the first backend export and curls `https://127.0.0.1:<port>/readyz` in the keepalived track script.
 On a loadbalancer machine with no apiserver, the probe fails permanently, so the script's weight is applied for good and the machine never wins the VRRP election.
 
-The role gains an `apiserverColocated` setting, lowered from whether the machine is in the apiserver's machine list, gating both the `vrrpScripts` block and `trackScripts`.
+The track script is gated on an apiserver being assigned to the same machine, read from `services.kubernetes.apiserver.enable` rather than plumbed through a setting, since the machine's own NixOS config already answers the question and does so for hand-written inventories too.
+The port comes from `services.kubernetes.apiserver.securePort` on the same machine, which retires the "every backend advertises the same port" assumption along with it.
 HAProxy's `/readyz` backend check is unaffected, and it is what actually drops a dead apiserver from rotation.
 The keepalived track script only ever answered the narrower question of whether the VIP holder's own apiserver is healthy.
 
@@ -176,7 +177,10 @@ This is the phase that unblocks everything else.
 
 ### Phase 2: loadbalancer colocation gate
 
-`modules/service/loadbalancer/`, plus the `apiserverColocated` setting in the lowering.
+Implemented.
+
+`modules/service/loadbalancer/` alone.
+Colocation is read from the machine's own `services.kubernetes.apiserver.enable`, so the lowering and the option tree are untouched.
 
 ### Phase 3: coredns explicit ClusterIP and node list
 
