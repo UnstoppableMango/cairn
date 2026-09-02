@@ -179,7 +179,8 @@ This is the phase that unblocks everything else.
 
 Implemented.
 
-`modules/service/loadbalancer/`, plus the `apiserverColocated` setting in the lowering.
+`modules/service/loadbalancer/` alone.
+Colocation is read from the machine's own `services.kubernetes.apiserver.enable`, so the lowering and the option tree are untouched.
 
 ### Phase 3: coredns explicit ClusterIP and node list
 
