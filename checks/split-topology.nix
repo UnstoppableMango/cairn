@@ -1,7 +1,8 @@
 # Coverage for a topology where services do not share machines the way both
 # examples assume: `etcd1` runs etcd and nothing else, `cp1` runs the
-# apiserver without being an etcd member, and `lb1` fronts the apiserver
-# without running one. See docs/TOPOLOGY.md.
+# apiserver without being an etcd member, `lb1` fronts the apiserver without
+# running one, and `dns1` bootstraps CoreDNS without either. See
+# docs/TOPOLOGY.md.
 #
 # Both examples are maximal co-location cases (single-node runs everything on
 # one machine, ha-cluster puts every control-plane service on every
@@ -27,6 +28,8 @@ let
   etcdIp = "10.10.0.31";
   cpIp = "10.10.0.11";
   lbIp = "10.10.0.41";
+  dnsIp = "10.10.0.51";
+  serviceClusterIpRange = "10.96.0.0/12";
   vip = "10.10.0.10";
   apiserverPort = 6443;
 
@@ -49,6 +52,7 @@ let
       etcd1.tags = [ "etcd" ];
       cp1.tags = [ "control-plane" ];
       lb1.tags = [ "loadbalancer" ];
+      dns1.tags = [ "dns" ];
     };
 
     inventory.instances = {
@@ -92,19 +96,45 @@ let
       };
 
       kubeconfig = mkModule "kubeconfig" // {
-        roles.node.tags = [ "control-plane" ];
+        roles.node.tags = [
+          "control-plane"
+          "dns"
+        ];
         roles.node.settings = { inherit vip clusterName; };
+      };
+
+      inoculant = mkModule "inoculant" // {
+        roles.node.machines.dns1.settings.nodeLabels = { };
+      };
+
+      coredns = mkModule "coredns" // {
+        roles.control-plane.machines.dns1 = { };
       };
     };
 
     machines.etcd1.nixpkgs.hostPlatform = system;
     machines.cp1.nixpkgs.hostPlatform = system;
     machines.lb1.nixpkgs.hostPlatform = system;
+    machines.dns1.nixpkgs.hostPlatform = system;
+
+    machines.dns1.cluster.cairn.coredns = {
+      # The service CIDR a consumer would set alongside the apiserver's own.
+      # dns1 runs no apiserver, so this is the only place it can come from.
+      inherit serviceClusterIpRange;
+
+      # dns1 applies the manifests but runs no kubelet, so the pods have to
+      # be pinned somewhere else. cp1 runs one, and the manifest's
+      # master/unschedulable tolerations cover its control-plane taint.
+      # Without this the default would pin them to dns1, a machine that is
+      # not a node at all.
+      nodeNames = [ "cp1" ];
+    };
   };
 
   etcd1 = consumer.config.nixosConfigurations.etcd1.config;
   cp1 = consumer.config.nixosConfigurations.cp1.config;
   lb1 = consumer.config.nixosConfigurations.lb1.config;
+  dns1 = consumer.config.nixosConfigurations.dns1.config;
 
   trackScriptsOf = machine: machine.services.keepalived.vrrpInstances.VI_K8S.trackScripts;
 
@@ -163,6 +193,25 @@ let
       assert lib.hasInfix "https://127.0.0.1:${toString apiserverPort}/readyz"
         cp1.services.keepalived.vrrpScripts.check_apiserver.script;
       cp1.services.keepalived.vrrpScripts.check_apiserver.weight;
+
+    # CoreDNS derives its ClusterIP from the service CIDR it is given, not
+    # from the local apiserver's config, which a machine that only
+    # bootstraps the manifests does not have.
+    corednsClusterIp =
+      assert dns1.cluster.cairn.coredns.clusterIp == "10.96.0.254";
+      dns1.cluster.cairn.coredns.clusterIp;
+
+    # The pods are pinned to the machine that runs a kubelet, not to the one
+    # that applied the manifests.
+    corednsNodeNames =
+      assert dns1.cluster.cairn.coredns.nodeNames == [ "cp1" ];
+      dns1.cluster.cairn.coredns.nodeNames;
+
+    # ...and it seeds no image where there is no kubelet to seed it into.
+    corednsWithoutKubelet =
+      assert dns1.services.kubernetes.kubelet.seedDockerImages == [ ];
+      assert dns1.services.kubernetes.inoculant.enable;
+      dns1.services.kubernetes.inoculant.manifests;
   };
 in
 pkgs.runCommand "cairn-split-topology" { } ''

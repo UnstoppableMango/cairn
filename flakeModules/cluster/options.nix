@@ -386,6 +386,29 @@ let
             description = "Machines CoreDNS may be scheduled onto, and from which its manifests are bootstrapped.";
           };
 
+          nodeNames = mkOption {
+            type = types.nullOr (types.listOf types.str);
+            default = null;
+            description = ''
+              Machines CoreDNS pods may be scheduled onto, as node affinity in
+              the generated Deployment. `null` uses `machines`, which is right
+              while the machines bootstrapping the manifests are the ones
+              running kubelets. Name the nodes outright when they are not.
+            '';
+          };
+
+          serviceClusterIpRange = mkOption {
+            type = types.nullOr types.str;
+            default = null;
+            example = "10.96.0.0/12";
+            description = ''
+              Service CIDR `clusterIp` is derived from. `null` keeps the
+              service's own default of `10.0.0.0/24`, which is also nixpkgs'
+              apiserver default. Set it alongside the apiserver's own range
+              rather than on its own.
+            '';
+          };
+
           clusterIp = mkOption {
             type = types.nullOr types.str;
             default = null;

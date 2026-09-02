@@ -13,16 +13,32 @@ in
   options.cluster.cairn.coredns = {
     nodeNames = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      description = "Hostnames of control-plane nodes CoreDNS may be scheduled onto.";
+      description = ''
+        Hostnames of the nodes CoreDNS may be scheduled onto, as
+        `kubernetes.io/hostname` node affinity on the Deployment. These must
+        be machines running a kubelet, which need not be the machines this
+        role is assigned to. The manifest tolerates the control-plane and
+        unschedulable taints, so control-plane nodes are valid entries.
+      '';
+    };
+
+    serviceClusterIpRange = lib.mkOption {
+      type = lib.types.str;
+      default = "10.0.0.0/24";
+      description = ''
+        Service CIDR the cluster's apiserver serves, which `clusterIp` is
+        derived from. Read here rather than off the local apiserver's own
+        `services.kubernetes.apiserver.serviceClusterIpRange`, since the
+        machine bootstrapping CoreDNS need not be running an apiserver.
+        Keep it consistent with the apiserver's range.
+      '';
     };
 
     clusterIp = lib.mkOption {
       type = lib.types.str;
       default =
-        (lib.concatStringsSep "." (
-          lib.take 3 (lib.splitString "." config.services.kubernetes.apiserver.serviceClusterIpRange)
-        ))
-        + ".254";
+        (lib.concatStringsSep "." (lib.take 3 (lib.splitString "." cfg.serviceClusterIpRange))) + ".254";
+      defaultText = lib.literalMD "the `.254` address of `serviceClusterIpRange`";
       description = "ClusterIP assigned to the kube-dns Service.";
     };
 
@@ -70,8 +86,13 @@ in
   config = {
     services.kubernetes.addons.dns.enable = false;
 
-    services.kubernetes.kubelet.seedDockerImages = [ cfg.image ];
-    services.kubernetes.kubelet.clusterDns = lib.mkDefault [ cfg.clusterIp ];
+    # Kubelet settings, so they only apply where a kubelet runs. A machine
+    # that only bootstraps the manifests has no image to seed and no kubelet
+    # to point at CoreDNS.
+    services.kubernetes.kubelet = lib.mkIf config.services.kubernetes.kubelet.enable {
+      seedDockerImages = [ cfg.image ];
+      clusterDns = lib.mkDefault [ cfg.clusterIp ];
+    };
 
     services.kubernetes.inoculant = {
       enable = true;
