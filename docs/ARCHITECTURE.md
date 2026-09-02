@@ -32,8 +32,8 @@ Services are intentionally split per-component rather than one monolithic servic
 | --- | --- | --- |
 | `pki` | `node` | — (provides the CA; others consume it) |
 | `etcd` | `member` | `pki` |
-| `apiserver` | `control-plane` | `pki`, `etcd` (exports), `kubelet` (control-plane role) |
-| `kubelet` | `control-plane`, `worker` | `pki` |
+| `apiserver` | `control-plane` | `pki`, `etcd` (exports), `kubelet` |
+| `kubelet` | `node` | `pki` |
 | `loadbalancer` | `control-plane` | `apiserver` (exports) |
 | `network` | `node` | `pki`, running apiserver at the VIP |
 | `kubeconfig` | `node` | `pki` |

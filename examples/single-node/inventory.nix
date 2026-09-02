@@ -38,7 +38,7 @@
       module.name = "@UnstoppableMango/kubelet";
       module.input = moduleInput;
 
-      roles.control-plane.machines.node1.settings.ip = ip;
+      roles.node.machines.node1.settings = { inherit ip vip clusterName; };
     };
 
     network = {
