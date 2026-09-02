@@ -18,7 +18,7 @@ Every service has a `machines` escape hatch, and the apiserver already reaches e
 etcd's own peer list comes from its role membership through `cairnLib.inventory.nodesOf`, which already works for an arbitrary machine set.
 
 What blocks a dedicated etcd machine is not the option tree.
-It is four co-location assumptions baked into the service modules, listed under [Co-location Assumptions](#co-location-assumptions) below.
+It is five co-location assumptions baked into the service modules (plus one pre-existing exports-selection bug), listed under [Co-location Assumptions](#co-location-assumptions) below.
 
 ## Summary of Decisions
 
@@ -28,7 +28,7 @@ It is four co-location assumptions baked into the service modules, listed under 
   It expands to a capability set and remains the readable shorthand for the common topologies.
   A per-machine `runs` list overrides the expansion outright.
 - **Presets compose in plain Nix, not through option merge semantics.**
-  The expansions are exposed as `flake.lib.presets`, so a consumer writes `runs = cairn.lib.presets.control-plane ++ [ "monitoring" ]` or `lib.remove "etcd" cairn.lib.presets.control-plane`.
+  The expansions are exposed as `inputs.cairn.lib.presets`, so a consumer writes `runs = inputs.cairn.lib.presets.control-plane ++ [ "monitoring" ]` or `lib.remove "etcd" inputs.cairn.lib.presets.control-plane`.
   There is no `alsoRuns`, no `excludes`, and no merge order to document.
 - **The old surface breaks cleanly.**
   No deprecation alias and no warnings.
