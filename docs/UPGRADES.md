@@ -3,8 +3,8 @@
 This document is the design for upgrading a running cairn cluster: new Kubernetes minors, new nixpkgs pins, and the machinery that makes a rolling upgrade safe.
 It records the architectural decisions first, then the phased implementation plan, then the manual runbook the tooling automates.
 
-Status: design.
-None of the phases below are implemented yet.
+Status: phases 0 and 1 are implemented, apart from the etcd `initialClusterState` change in phase 0.
+Phases 2 through 4 are design.
 
 ## Summary of Decisions
 
@@ -114,6 +114,7 @@ That is noted as a possible extension and deliberately out of scope.
 ### Phase 0: hardening
 
 Pure nix changes worth landing regardless of the rest of the design.
+Implemented except for the etcd bullet.
 
 - **HAProxy readiness checks** (`modules/service/loadbalancer/control-plane.nix`): replace `option tcp-check` with `option httpchk GET /readyz` and `http-check expect status 200` against the apiserver backends on their real port, so a backend drops out of rotation when the apiserver is unready, not merely unreachable.
 - **keepalived tracks apiserver health** (same file): add a track script curling the local apiserver's `/readyz`, with a weight large enough (60, against priorities 150/100/50) that a node whose apiserver is down loses the VIP election.
@@ -122,10 +123,12 @@ Pure nix changes worth landing regardless of the rest of the design.
 - **Bulk updates become inert** (`flakeModules/cluster/lower.nix`): set `clan.core.deployment.requireExplicitUpdate = true` on every cairn machine, exposed as a cluster-level option defaulting to `true`.
   This is the single most important safety change: a bare `clan machines update` restarts every etcd member and apiserver simultaneously, and this one line makes that a no-op for cluster machines, forcing the per-machine invocation the orchestrator performs.
 - **etcd rejoins instead of re-initializing** (`modules/service/etcd/member.nix`): steady-state machines run with `initialClusterState = "existing"`; only bootstrap uses `"new"`.
+  Outstanding: the option exists and is threaded through the lowering, but it defaults to `"new"` and nothing distinguishes bootstrap from steady state.
 
 ### Phase 1: version surface
 
 The kubepkgs input, the `versions.*` options, the `symlinkJoin` lowering, and the skew assertions described above.
+Implemented.
 
 ### Phase 2: the orchestrator
 
