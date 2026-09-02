@@ -481,5 +481,6 @@ Set those in `clan.machines.<name>`, on machines assigned a service that declare
 - [`examples/ha-cluster`](../examples/ha-cluster) is this whole document as a runnable flake.
 - [`examples/single-node`](../examples/single-node) is a minimal one-machine cluster with a hand-written inventory.
 - [`docs/UPGRADES.md`](UPGRADES.md) is the design and runbook for upgrading a running cluster.
+- [`docs/TOPOLOGY.md`](TOPOLOGY.md) is the design for deciding which machines run which services.
 - Each service's own `README.md` under `modules/service/<name>/README.md` documents its options and dependencies in more depth.
 - `modules/service/AGENTS.md` covers the clan service authoring model, useful if you want to add a new service to cairn itself.
