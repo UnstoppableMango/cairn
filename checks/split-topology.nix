@@ -87,7 +87,13 @@ let
       };
 
       kubelet = mkModule "kubelet" // {
-        roles.control-plane.machines.cp1.settings.ip = cpIp;
+        roles.node.machines.cp1.settings = {
+          ip = cpIp;
+          # cp1 runs an apiserver, so it is a node without being a target
+          # for pods.
+          schedulable = false;
+          inherit vip clusterName;
+        };
       };
 
       network = mkModule "network" // {

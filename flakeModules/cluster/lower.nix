@@ -174,41 +174,22 @@ let
           );
         })
 
-        (instance
-          (
-            svc.kubelet.enable && (svc.kubelet.controlPlaneMachines != [ ] || svc.kubelet.workerMachines != [ ])
-          )
-          "${prefix}kubelet"
-          {
-            module = mkModule "kubelet";
-            roles =
-              optionalAttrs (svc.kubelet.controlPlaneMachines != [ ]) {
-                # Rides alongside the apiserver, which already forwards the
-                # cluster-wide settings; only the node's own IP is needed here.
-                control-plane = mkRole svc.kubelet "kubelet" svc.kubelet.controlPlaneMachines (
-                  m:
-                  {
-                    ip = machineIp m;
-                  }
-                  // optionalAttrs (effectiveVersion m != null) {
-                    kubernetesVersion = effectiveVersion m;
-                  }
-                );
-              }
-              // optionalAttrs (svc.kubelet.workerMachines != [ ]) {
-                worker = mkRole svc.kubelet "kubelet" svc.kubelet.workerMachines (
-                  m:
-                  {
-                    ip = machineIp m;
-                  }
-                  // clusterSettings
-                  // optionalAttrs (effectiveVersion m != null) {
-                    kubernetesVersion = effectiveVersion m;
-                  }
-                );
-              };
-          }
-        )
+        (instance (svc.kubelet.enable && svc.kubelet.machines != [ ]) "${prefix}kubelet" {
+          module = mkModule "kubelet";
+          roles.node = mkRole svc.kubelet "kubelet" svc.kubelet.machines (
+            m:
+            {
+              ip = machineIp m;
+              # nixpkgs taints a master-only machine unschedulable, so a
+              # control-plane machine is a node only when asked to be.
+              schedulable = cluster.machines.${m}.role == "worker" || cluster.machines.${m}.schedulable;
+            }
+            // clusterSettings
+            // optionalAttrs (effectiveVersion m != null) {
+              kubernetesVersion = effectiveVersion m;
+            }
+          );
+        })
 
         (instance (svc.loadbalancer.enable && svc.loadbalancer.machines != [ ]) "${prefix}loadbalancer" {
           module = mkModule "loadbalancer";
@@ -266,18 +247,14 @@ let
 
   # kubelet/common.nix declares `cluster.cairn.kubelet.*`, and both roles
   # import it, so this covers control-plane and worker machines alike.
-  kubeletMachines = lib.unique (
-    assigned svc.kubelet.enable svc.kubelet.controlPlaneMachines
-    ++ assigned svc.kubelet.enable svc.kubelet.workerMachines
-  );
+  kubeletMachines = assigned svc.kubelet.enable svc.kubelet.machines;
 
   # Machines whose role modules import modules/service/cluster.nix, and so
-  # have `cluster.cairn.apiServerPort` declared. pki/node.nix,
-  # kubelet/common.nix (the control-plane kubelet) and etcd/member.nix
-  # deliberately don't, so none of them appears here.
+  # have `cluster.cairn.apiServerPort` declared. pki/node.nix and
+  # etcd/member.nix deliberately don't, so neither appears here.
   clusterScoped =
     assigned svc.apiserver.enable svc.apiserver.machines
-    ++ assigned svc.kubelet.enable svc.kubelet.workerMachines
+    ++ kubeletMachines
     ++ assigned svc.loadbalancer.enable svc.loadbalancer.machines
     ++ assigned svc.network.enable svc.network.machines
     ++ assigned svc.kubeconfig.enable svc.kubeconfig.machines;
@@ -304,12 +281,6 @@ let
       # restarting every etcd member and apiserver at once.
       optional cluster.requireExplicitUpdate {
         clan.core.deployment.requireExplicitUpdate = true;
-      }
-      # nixpkgs' kubernetes module taints a master-only machine
-      # unschedulable; a cluster with no separate workers needs its
-      # control-plane machines to also be nodes.
-      ++ optional (m.schedulable && m.role == "control-plane") {
-        services.kubernetes.roles = [ "node" ];
       }
       ++ optional (elem mname clusterScoped) {
         cluster.cairn.apiServerPort = cluster.apiServerPort;

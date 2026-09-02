@@ -153,7 +153,8 @@ The rest of the surface, all optional:
 | `services.<name>.settings` | `{}` | Raw inventory settings merged over the generated ones |
 | `services.<name>.extraModules` | `[]` | Extra NixOS modules for this service's role assignments |
 
-`kubelet` is the one service with two machine lists, `controlPlaneMachines` and `workerMachines`, since its two roles take different settings.
+`services.kubelet.machines` defaults to every machine, since a machine that is not a Kubernetes node is unusual.
+Whether pods schedule onto one follows `machines.<name>.schedulable`, which a `worker` machine has by definition.
 
 ### Kubernetes version
 
@@ -355,24 +356,26 @@ inventory.instances.apiserver = {
 
 ### kubelet
 
-Control-plane machines only need their own IP (kubelet rides alongside the apiserver's own `master` role).
-Worker machines need IP, VIP, and cluster name, since they have no apiserver service to pick those up from.
+One role for every machine that should appear as a Kubernetes node, whether or not an apiserver runs alongside.
+Each needs its own IP, the VIP, and the cluster name: every kubelet reaches the apiserver through the VIP.
+
+`schedulable` decides whether pods land there.
+It defaults to `true`; set it false on a machine running an apiserver, since nixpkgs taints a master-only machine unschedulable and giving it the NixOS `node` role would undo that.
 
 ```nix
 inventory.instances.kubelet = {
   module.name = "@UnstoppableMango/kubelet";
   module.input = "cairn";
 
-  roles.control-plane.machines = cairnLib.inventory.mkMachines { } {
-    cp1.ip = "10.10.0.11";
-    cp2.ip = "10.10.0.12";
-    cp3.ip = "10.10.0.13";
-  };
-
-  roles.worker.machines = cairnLib.inventory.mkMachines { vip = "10.10.0.10"; clusterName = "example"; } {
-    worker1.ip = "10.10.0.21";
-    worker2.ip = "10.10.0.22";
-  };
+  roles.node.machines =
+    cairnLib.inventory.mkMachines { vip = "10.10.0.10"; clusterName = "example"; }
+      {
+        cp1 = { ip = "10.10.0.11"; schedulable = false; };
+        cp2 = { ip = "10.10.0.12"; schedulable = false; };
+        cp3 = { ip = "10.10.0.13"; schedulable = false; };
+        worker1.ip = "10.10.0.21";
+        worker2.ip = "10.10.0.22";
+      };
 };
 ```
 
