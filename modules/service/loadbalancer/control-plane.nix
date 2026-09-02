@@ -11,7 +11,10 @@ let
 
   # Every backend advertises the same apiserver port, so the local apiserver
   # listens where the first backend does.
-  localApiserverPort = lib.last (lib.splitString ":" (lib.head cfg.apiserverBackends));
+  localApiserverPort =
+    lib.throwIf (cfg.apiserverBackends == [ ])
+      "cluster.cairn.loadbalancer.healthCheck.enable requires cluster.cairn.loadbalancer.apiserverBackends to be non-empty: the keepalived probe reads the apiserver's port off a backend entry. Co-assign the apiserver service so its endpoints export reaches the loadbalancer, or set healthCheck.enable = false."
+      (lib.last (lib.splitString ":" (lib.head cfg.apiserverBackends)));
 
   backendCheck =
     if hc.enable then

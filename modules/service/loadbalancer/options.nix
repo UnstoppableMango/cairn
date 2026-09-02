@@ -32,19 +32,19 @@
         };
 
         interval = lib.mkOption {
-          type = lib.types.int;
+          type = lib.types.ints.positive;
           default = 2;
           description = "Seconds between keepalived probes of the local apiserver.";
         };
 
         fall = lib.mkOption {
-          type = lib.types.int;
+          type = lib.types.ints.positive;
           default = 3;
           description = "Consecutive failed probes before keepalived marks the apiserver down.";
         };
 
         rise = lib.mkOption {
-          type = lib.types.int;
+          type = lib.types.ints.positive;
           default = 2;
           description = "Consecutive successful probes before keepalived marks the apiserver up again.";
         };
