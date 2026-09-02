@@ -13,7 +13,13 @@ in
   options.cluster.cairn.coredns = {
     nodeNames = lib.mkOption {
       type = lib.types.listOf lib.types.str;
-      description = "Hostnames of control-plane nodes CoreDNS may be scheduled onto.";
+      description = ''
+        Hostnames of the nodes CoreDNS may be scheduled onto, as
+        `kubernetes.io/hostname` node affinity on the Deployment. These must
+        be machines running a kubelet, which need not be the machines this
+        role is assigned to. The manifest tolerates the control-plane and
+        unschedulable taints, so control-plane nodes are valid entries.
+      '';
     };
 
     serviceClusterIpRange = lib.mkOption {

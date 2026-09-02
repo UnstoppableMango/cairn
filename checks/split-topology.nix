@@ -107,7 +107,6 @@ let
         roles.node.machines.dns1.settings.nodeLabels = { };
       };
 
-      # dns1 applies the manifests; the pods land on cp1, which runs a kubelet.
       coredns = mkModule "coredns" // {
         roles.control-plane.machines.dns1 = { };
       };
@@ -118,9 +117,18 @@ let
     machines.lb1.nixpkgs.hostPlatform = system;
     machines.dns1.nixpkgs.hostPlatform = system;
 
-    # The service CIDR a consumer would set alongside the apiserver's own.
-    # dns1 runs no apiserver, so this is the only place it can come from.
-    machines.dns1.cluster.cairn.coredns.serviceClusterIpRange = serviceClusterIpRange;
+    machines.dns1.cluster.cairn.coredns = {
+      # The service CIDR a consumer would set alongside the apiserver's own.
+      # dns1 runs no apiserver, so this is the only place it can come from.
+      inherit serviceClusterIpRange;
+
+      # dns1 applies the manifests but runs no kubelet, so the pods have to
+      # be pinned somewhere else. cp1 runs one, and the manifest's
+      # master/unschedulable tolerations cover its control-plane taint.
+      # Without this the default would pin them to dns1, a machine that is
+      # not a node at all.
+      nodeNames = [ "cp1" ];
+    };
   };
 
   etcd1 = consumer.config.nixosConfigurations.etcd1.config;
@@ -192,6 +200,12 @@ let
     corednsClusterIp =
       assert dns1.cluster.cairn.coredns.clusterIp == "10.96.0.254";
       dns1.cluster.cairn.coredns.clusterIp;
+
+    # The pods are pinned to the machine that runs a kubelet, not to the one
+    # that applied the manifests.
+    corednsNodeNames =
+      assert dns1.cluster.cairn.coredns.nodeNames == [ "cp1" ];
+      dns1.cluster.cairn.coredns.nodeNames;
 
     # ...and it seeds no image where there is no kubelet to seed it into.
     corednsWithoutKubelet =
