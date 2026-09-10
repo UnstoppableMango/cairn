@@ -1,0 +1,164 @@
+{
+  description = "A Kubernetes distribution built on Nix and clan";
+
+  inputs = {
+    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    systems.url = "github:UnstoppableMango/nix-systems";
+
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    clan-core = {
+      url = "https://git.clan.lol/clan/clan-core/archive/26.05.tar.gz";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "treefmt-nix";
+      };
+    };
+
+    a2b = {
+      url = "github:UnstoppableMango/a2b";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "treefmt-nix";
+      };
+    };
+
+    kubepkgs = {
+      url = "github:unmango/kubepkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "treefmt-nix";
+      };
+    };
+
+    inoculant = {
+      url = "github:UnstoppableMango/inoculant";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+        flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "treefmt-nix";
+        gomod2nix.follows = "a2b/mangopkgs/gomod2nix";
+        nix2container.follows = "a2b/mangopkgs/nix2container";
+      };
+    };
+  };
+
+  outputs =
+    inputs@{ flake-parts, ... }:
+    let
+      cairnFlakeModule = import ./flakeModules/default.nix {
+        inherit (inputs) clan-core;
+      };
+    in
+    flake-parts.lib.mkFlake { inherit inputs; } (
+      { config, lib, ... }:
+      let
+        cairnLib = import ./lib { inherit lib; };
+      in
+      {
+        systems = import inputs.systems;
+
+        imports = with inputs; [
+          systems.flakeModule
+
+          treefmt-nix.flakeModule
+          flake-parts.flakeModules.modules
+          flake-parts.flakeModules.flakeModules
+          cairnFlakeModule
+          clan-core.flakeModules.testModule
+        ];
+
+        flake.flakeModules.default = cairnFlakeModule;
+        flake.lib = cairnLib;
+
+        clan = {
+          imports = [
+            (lib.modules.importApply ./clan.nix {
+              inherit cairnLib;
+              inherit (inputs) inoculant a2b kubepkgs;
+            })
+          ];
+        };
+
+        perSystem =
+          { pkgs, ... }:
+          {
+            devShells.default = pkgs.mkShellNoCC {
+              packages = with pkgs; [
+                gnumake
+                nixfmt
+              ];
+            };
+
+            clan.nixosTests.single-node-cluster = import ./examples/single-node/tests/vm/default.nix {
+              cairnModules = lib.getAttrs [
+                "@UnstoppableMango/pki"
+                "@UnstoppableMango/etcd"
+                "@UnstoppableMango/apiserver"
+                "@UnstoppableMango/kubelet"
+                "@UnstoppableMango/network"
+                "@UnstoppableMango/kubeconfig"
+                "@UnstoppableMango/inoculant"
+                "@UnstoppableMango/coredns"
+              ] config.flake.clan.modules;
+            };
+
+            checks.consumer-services = import ./checks/consumer-services.nix {
+              inherit pkgs;
+              inherit (inputs) clan-core nixpkgs;
+              cairnModules = config.flake.clan.modules;
+            };
+
+            # Coverage for the `cairn.clusters` flake-module interface, which
+            # nothing else in CI exercises (see checks/flake-module.nix).
+            checks.flake-module = import ./checks/flake-module.nix {
+              inherit lib pkgs;
+              inherit (inputs) clan-core nixpkgs;
+              cairnModules = config.flake.clan.modules;
+            };
+
+            # Coverage for a machine running etcd without the apiserver, and
+            # the reverse, which both examples co-locate (see
+            # checks/split-topology.nix).
+            checks.split-topology = import ./checks/split-topology.nix {
+              inherit lib pkgs;
+              inherit (inputs) clan-core nixpkgs;
+              cairnModules = config.flake.clan.modules;
+            };
+
+            treefmt = {
+              programs = {
+                nixfmt.enable = true;
+                mdformat.enable = true;
+                yamlfmt.enable = true;
+                jsonfmt.enable = true;
+                mbake = {
+                  enable = true;
+                  settings.ensure_final_newline = true;
+                };
+              };
+
+              settings.formatter.mdformat.excludes = [
+                ".agents/skills/**"
+                ".claude/skills/**"
+              ];
+            };
+          };
+      }
+    );
+}

@@ -1,0 +1,29 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          # A CLI --option can't turn this on for an untrusted user: the nix
+          # daemon silently ignores it unless the invoking user is in
+          # trusted-users, which the runner user isn't by default. Set it in
+          # the daemon's own nix.conf instead, scoped to this CI install only
+          # (the flake's own nixConfig stays IFD-agnostic for consumers).
+          extra_nix_config: |
+            allow-import-from-derivation = true
+      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: unstoppablemango
+      # ubuntu-latest (24.04) restricts unprivileged user namespaces via
+      # AppArmor by default, which breaks bubblewrap sandboxing (used by
+      # clan's vars generators): bwrap fails with "setting up uid map:
+      # Permission denied". Lift the restriction for this job only.
+      - run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
+      - run: nix flake check --option allow-import-from-derivation true
