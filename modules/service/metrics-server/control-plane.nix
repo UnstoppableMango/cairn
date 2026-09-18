@@ -91,6 +91,21 @@ in
 
     services.kubernetes.inoculant = {
       enable = true;
+
+      # inoculant scopes its own RBAC to the kinds it finds in `manifests`,
+      # and RBAC keys the "bind" check on the referenced role's resource
+      # rather than on rolebindings. The auth-reader RoleBinding here
+      # references the apiserver's own
+      # `extension-apiserver-authentication-reader` Role, and this addon
+      # ships no Role of its own, so nothing in the manifest set grants
+      # `bind` on roles and the binding is refused.
+      additionalAllowedGVKs = [
+        {
+          group = "rbac.authorization.k8s.io";
+          ver = "v1";
+          kind = "Role";
+        }
+      ];
       manifests = import ./manifests.nix {
         inherit (cfg)
           image
