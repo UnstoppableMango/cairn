@@ -218,7 +218,13 @@ let
 
         (instance (svc.kubeconfig.enable && svc.kubeconfig.machines != [ ]) "${prefix}kubeconfig" {
           module = mkModule "kubeconfig";
-          roles.node = mkRole svc.kubeconfig "kubeconfig" svc.kubeconfig.machines (_: clusterSettings);
+          roles.node = mkRole svc.kubeconfig "kubeconfig" svc.kubeconfig.machines (
+            m:
+            clusterSettings
+            // optionalAttrs (effectiveVersion m != null) {
+              kubernetesVersion = effectiveVersion m;
+            }
+          );
         })
 
         (instance (svc.inoculant.enable && svc.inoculant.machines != [ ]) "${prefix}inoculant" {

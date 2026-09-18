@@ -1,6 +1,6 @@
-# Regression check for #37: `inoculant`, `flux`, `kubelet` and `etcd` are the
-# services that close over cairn's *own* flake inputs (`inoculant` / `a2b` /
-# `kubepkgs`). If those are reached through a module argument that only
+# Regression check for #37: `inoculant`, `flux`, `kubelet`, `etcd` and
+# `kubeconfig` are the services that close over cairn's *own* flake inputs
+# (`inoculant` / `a2b` / `kubepkgs`). If those are reached through a module argument that only
 # exists inside cairn's own flake.nix (e.g. an `inputs` specialArg),
 # resolving the service blows up with `error: attribute 'inputs' missing`,
 # but only once a machine is actually assigned one of the roles, since
@@ -56,6 +56,7 @@ let
     # Same for etcd: unpinned, the member stays on nixpkgs' etcd, and forcing
     # it walks etcd's version module.
     etcd = builtins.unsafeDiscardStringContext "${node1.services.etcd.package}";
+    kubectl = builtins.unsafeDiscardStringContext "${node1.cluster.cairn.kubeconfig.kubectl}";
     flux =
       assert cfg.manifestFiles != [ ];
       map (drv: builtins.unsafeDiscardStringContext "${drv}") cfg.manifestFiles;
