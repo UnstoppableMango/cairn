@@ -14,7 +14,12 @@
     imports = [
       (import ../../inventory.nix {
         moduleInput = "self";
-        ip = "127.0.0.1";
+        # The test VM's own address on vlan 1, which the NixOS test
+        # framework assigns as 192.168.<vlan>.<nodeNumber>. Not 127.0.0.1:
+        # the apiserver refuses to advertise an address in the loopback
+        # range when the endpoint reconciler maintains the kubernetes
+        # service endpoints, which is the default.
+        ip = "192.168.1.1";
       })
     ];
 
