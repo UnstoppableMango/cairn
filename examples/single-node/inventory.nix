@@ -77,5 +77,12 @@
 
       roles.control-plane.tags.control-plane = { };
     };
+
+    metrics-server = {
+      module.name = "@UnstoppableMango/metrics-server";
+      module.input = moduleInput;
+
+      roles.control-plane.tags.control-plane = { };
+    };
   };
 }

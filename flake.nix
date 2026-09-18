@@ -114,6 +114,7 @@
                 "@UnstoppableMango/kubeconfig"
                 "@UnstoppableMango/inoculant"
                 "@UnstoppableMango/coredns"
+                "@UnstoppableMango/metrics-server"
               ] config.flake.clan.modules;
             };
 

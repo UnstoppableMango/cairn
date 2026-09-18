@@ -58,17 +58,34 @@
   nodes.node1 =
     { pkgs, ... }:
     let
+      # busybox linked into /bin so the test script can exec tools inside the
+      # container by a path that does not depend on a store path, which the
+      # test script cannot interpolate from here anyway.
       smokeTestImage = pkgs.dockerTools.buildImage {
         name = "smoke-test";
         tag = "test";
+        copyToRoot = pkgs.buildEnv {
+          name = "smoke-test-root";
+          paths = [ pkgs.busybox ];
+          pathsToLink = [ "/bin" ];
+        };
         config.Cmd = [
-          "${pkgs.busybox}/bin/sleep"
+          "/bin/sleep"
           "3600"
         ];
       };
     in
     {
       services.kubernetes.kubelet.seedDockerImages = [ smokeTestImage ];
+
+      # The seeded images (coredns, metrics-server, the pause shim and this
+      # test's own) land in containerd's store on the VM's writable disk. The
+      # NixOS test default is small enough that kubelet's image garbage
+      # collector crosses its disk-usage threshold and deletes the seeded
+      # images, which then cannot be re-pulled: every pod fails with
+      # ErrImageNeverPull long after the import succeeded.
+      virtualisation.diskSize = 8192;
+      virtualisation.memorySize = 4096;
     };
 
   testScript = ''
@@ -84,7 +101,8 @@
 
     # No trailing command override: the image's own Cmd already runs sleep by
     # absolute path. Overriding it with a bare "sleep" here would fail to
-    # exec, since the container has no $PATH to resolve it against.
+    # exec, since the container has no $PATH to resolve it against, which is
+    # also why the exec below spells out /bin/nslookup.
     #
     # wait_until_succeeds, not succeed: node Ready doesn't imply the
     # controller-manager has finished creating the default namespace's
@@ -103,6 +121,30 @@
         "kubectl -n kube-system get deployment coredns"
         " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
     )
+
+    # Cluster DNS end to end, not just a ready Deployment: the pod's
+    # resolver, the kube-dns ClusterIP, kube-proxy's rule for it, and
+    # CoreDNS' answer for an in-cluster Service all have to line up.
+    node1.wait_until_succeeds(
+        "kubectl exec smoke-test -- /bin/nslookup"
+        " kubernetes.default.svc.cluster.local"
+    )
+
+    # metrics-server: the Deployment lands on the node whose image was
+    # seeded, the aggregation layer routes the Metrics API to it, and a
+    # scrape of the local kubelet succeeds over TLS verified against the
+    # cluster CA. `kubectl top` is the only one of the three that proves the
+    # scrape itself worked.
+    node1.wait_until_succeeds(
+        "kubectl -n kube-system get deployment metrics-server"
+        " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
+    )
+    node1.wait_until_succeeds(
+        "kubectl get apiservice v1beta1.metrics.k8s.io"
+        " -o jsonpath='{.status.conditions[?(@.type==\"Available\")].status}'"
+        " | grep -q True"
+    )
+    node1.wait_until_succeeds("kubectl top node node1 | grep -q node1")
 
     node1.wait_until_succeeds(
         "kubectl get node node1 -o jsonpath='{.metadata.labels}'"
