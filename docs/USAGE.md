@@ -165,7 +165,7 @@ By default the cluster runs whatever Kubernetes version the nixpkgs pin resolves
 versions.kubernetes = "1.36";
 ```
 
-Every component on every machine moves together, etcd included: members run the etcd kubeadm ships for that minor, with `etcdctl` and `etcdutl` on their PATH from the same set.
+Every component on every machine moves together, etcd included: members run the etcd kubeadm ships for that minor, with `etcdctl` and `etcdutl` on their PATH from the same set, and the `kubectl` the kubeconfig service installs comes from the same minor.
 A per-machine `machines.<name>.kubernetesVersion` overrides the cluster value, and the lowering asserts the Kubernetes version skew policy between pinned machines.
 `versions.kubernetesPackage` and `versions.etcdPackage` are package-level escape hatches for a fully custom build.
 [`docs/UPGRADES.md`](UPGRADES.md) covers the upgrade procedure built on these knobs.

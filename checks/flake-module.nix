@@ -186,6 +186,17 @@ let
           ];
     }
     {
+      msg = "the pinned Kubernetes minor reaches every kubeconfig machine";
+      cond = (settingsOf "kubeconfig" "node" "cp1").kubernetesVersion == "1.36";
+    }
+    {
+      # The kubectl on an operator's PATH is the pinned minor's, not nixpkgs',
+      # which can drift past the one-minor kubectl skew.
+      msg = "the version pin reaches the kubectl on the machine's PATH";
+      cond =
+        consumer.config.nixosConfigurations.cp1.config.cluster.cairn.kubeconfig.kubectl == pinned.kubectl;
+    }
+    {
       msg = "apiserver health checking reaches the loadbalancer and defaults on";
       cond = (settingsOf "loadbalancer" "control-plane" "cp1").healthCheck.enable;
     }

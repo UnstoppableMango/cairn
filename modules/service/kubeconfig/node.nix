@@ -1,6 +1,7 @@
 { cairnLib }:
 {
   config,
+  lib,
   pkgs,
   ...
 }:
@@ -11,6 +12,13 @@ let
 in
 {
   imports = [ ../cluster.nix ];
+
+  options.cluster.cairn.kubeconfig.kubectl = lib.mkOption {
+    type = lib.types.package;
+    default = pkgs.kubectl;
+    defaultText = lib.literalExpression "pkgs.kubectl";
+    description = "kubectl installed on the machine. A pinned Kubernetes minor supplies the matching one; see version.nix.";
+  };
 
   config = {
     cluster.cairn.pki.certs.admin-cert = {
@@ -32,7 +40,7 @@ in
       };
     };
 
-    environment.systemPackages = [ pkgs.kubectl ];
+    environment.systemPackages = [ cfg.kubeconfig.kubectl ];
 
     environment.variables.KUBECONFIG = kubeconfigPath;
   };
