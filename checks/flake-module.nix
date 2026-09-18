@@ -161,6 +161,22 @@ let
       cond = lib.hasInfix "1.36" consumer.config.nixosConfigurations.cp1.config.services.kubernetes.package.name;
     }
     {
+      msg = "the pinned Kubernetes minor reaches every etcd member";
+      cond = (settingsOf "etcd" "member" "cp1").kubernetesVersion == "1.36";
+    }
+    {
+      # The member's etcd comes from the pinned minor's kubepkgs deps roster,
+      # not from nixpkgs. Evaluation-only: the derivation is never built.
+      msg = "the version pin reaches the etcd server and its tools";
+      cond =
+        let
+          etcd = consumer.config.nixosConfigurations.cp1.config;
+        in
+        etcd.services.etcd.package.pname == "etcd"
+        && etcd.services.etcd.package != pkgs.etcd
+        && lib.length etcd.cluster.cairn.etcd.tools == 2;
+    }
+    {
       msg = "apiserver health checking reaches the loadbalancer and defaults on";
       cond = (settingsOf "loadbalancer" "control-plane" "cp1").healthCheck.enable;
     }

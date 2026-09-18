@@ -6,7 +6,7 @@
 # once, the same shape as upgrading a kubeadm node. kubepkgs ships one
 # derivation per component instead, hence the symlinkJoin. The `pause`
 # passthru is what `kubelet.nix` wraps into the sandbox image; the shim is
-# version-insensitive, so nixpkgs' copy serves every minor.
+# version-insensitive, so nixpkgs' copy serves every minor (#77).
 { kubepkgs }:
 {
   config,
@@ -15,32 +15,27 @@
   ...
 }:
 let
+  release = import ../releases.nix { inherit kubepkgs; };
   v = config.cluster.cairn.kubernetesVersion;
-  releases = kubepkgs.legacyPackages.${pkgs.stdenv.hostPlatform.system}.kubernetes;
-  supported = lib.remove "latest" (lib.attrNames releases);
 in
 {
-  options.cluster.cairn.kubernetesVersion = lib.mkOption {
-    type = lib.types.nullOr lib.types.str;
-    default = null;
-    example = "1.36";
-    description = ''
-      Kubernetes minor to run, from kubepkgs' per-minor package sets. `null`
-      follows nixpkgs' `pkgs.kubernetes` instead, coupling the cluster
-      version to the nixpkgs pin. See docs/UPGRADES.md for how this drives
-      rolling upgrades.
-    '';
-  };
+  imports = [ ../version.nix ];
 
-  config = lib.mkIf (v != null) {
-    services.kubernetes.package =
-      lib.throwIfNot (releases ? ${v})
-        "cluster.cairn.kubernetesVersion: kubepkgs does not ship ${v}; supported minors are ${lib.concatStringsSep ", " supported}."
-        pkgs.symlinkJoin
-        {
-          name = "kubernetes-${releases.${v}.kubelet.version}";
-          paths = lib.filter lib.isDerivation (lib.attrValues releases.${v});
-          passthru.pause = pkgs.kubernetes.pause;
-        };
-  };
+  config = lib.mkIf (v != null) (
+    let
+      components = release {
+        inherit lib pkgs;
+        version = v;
+      };
+    in
+    {
+      services.kubernetes.package = pkgs.symlinkJoin {
+        name = "kubernetes-${components.kubelet.version}";
+        # The per-minor set carries the `sigs` and `deps` rosters alongside
+        # the core binaries; only the binaries belong in the join.
+        paths = lib.filter lib.isDerivation (lib.attrValues components);
+        passthru.pause = pkgs.kubernetes.pause;
+      };
+    }
+  );
 }

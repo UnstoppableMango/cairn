@@ -1,4 +1,4 @@
-# Regression check for #37: `inoculant`, `flux` and `kubelet` are the
+# Regression check for #37: `inoculant`, `flux`, `kubelet` and `etcd` are the
 # services that close over cairn's *own* flake inputs (`inoculant` / `a2b` /
 # `kubepkgs`). If those are reached through a module argument that only
 # exists inside cairn's own flake.nix (e.g. an `inputs` specialArg),
@@ -53,6 +53,9 @@ let
     # The single-node example pins no version, so this must still be
     # nixpkgs' kubernetes; forcing it walks kubelet's version module.
     kubelet = builtins.unsafeDiscardStringContext "${node1.services.kubernetes.package}";
+    # Same for etcd: unpinned, the member stays on nixpkgs' etcd, and forcing
+    # it walks etcd's version module.
+    etcd = builtins.unsafeDiscardStringContext "${node1.services.etcd.package}";
     flux =
       assert cfg.manifestFiles != [ ];
       map (drv: builtins.unsafeDiscardStringContext "${drv}") cfg.manifestFiles;

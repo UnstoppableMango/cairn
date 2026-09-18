@@ -2,21 +2,6 @@
 { lib, ... }:
 let
   versionModule = lib.modules.importApply ./version.nix { inherit kubepkgs; };
-
-  kubernetesVersion =
-    { lib, ... }:
-    {
-      options.kubernetesVersion = lib.mkOption {
-        type = lib.types.nullOr lib.types.str;
-        default = null;
-        example = "1.36";
-        description = ''
-          Kubernetes minor to run on this machine, from kubepkgs' per-minor
-          package sets. `null` follows nixpkgs' `pkgs.kubernetes`. Every
-          component on the machine moves together; see docs/UPGRADES.md.
-        '';
-      };
-    };
 in
 {
   _class = "clan.service";
@@ -29,8 +14,6 @@ in
     interface =
       { lib, ... }:
       {
-        imports = [ kubernetesVersion ];
-
         options = {
           ip = lib.mkOption {
             type = lib.types.str;
@@ -53,7 +36,7 @@ in
             '';
           };
 
-          inherit (cairnLib.options) vip clusterName;
+          inherit (cairnLib.options) vip clusterName kubernetesVersion;
         };
       };
 

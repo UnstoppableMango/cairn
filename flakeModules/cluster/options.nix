@@ -578,9 +578,10 @@ let
             type = types.nullOr types.package;
             default = null;
             description = ''
-              etcd package for the cluster's members, pinning etcd
-              independently of nixpkgs. kubepkgs ships no etcd, so `null`
-              follows nixpkgs' `pkgs.etcd`.
+              etcd server for the cluster's members, overriding the etcd
+              that `versions.kubernetes` selects from kubepkgs. `null` takes
+              the pinned minor's etcd, or nixpkgs' `pkgs.etcd` when no minor
+              is pinned.
             '';
           };
         };

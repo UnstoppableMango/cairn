@@ -8,6 +8,12 @@ apiserver use is declared in `../etcd-client.nix`, which both role modules
 import, so a member needs no apiserver alongside it and an apiserver needs no
 member.
 
+The member runs the etcd that the cluster's pinned Kubernetes minor selects
+from kubepkgs (`version.nix`), matching the etcd kubeadm ships for that minor,
+with `etcdctl` and `etcdutl` on the member's PATH from the same set. A cluster
+that pins no minor follows nixpkgs' `pkgs.etcd`, and
+`cluster.cairn.etcd.package` overrides either.
+
 Exports each member's client URL (`https://<ip>:2379`) via clan's
 `endpoints` export interface (`endpoints.hosts`, the closest typed fit
 clan's exports mechanism offers for "a URL per machine"), consumed by the

@@ -1,4 +1,8 @@
-{ cairnLib }:
+{ cairnLib, kubepkgs }:
+{ lib, ... }:
+let
+  versionModule = lib.modules.importApply ./version.nix { inherit kubepkgs; };
+in
 {
   _class = "clan.service";
   manifest.name = "etcd";
@@ -11,12 +15,14 @@
     interface =
       { lib, ... }:
       {
-        options.ip = lib.mkOption {
-          type = lib.types.str;
-          description = "IP address of this etcd member.";
-        };
+        options = {
+          ip = lib.mkOption {
+            type = lib.types.str;
+            description = "IP address of this etcd member.";
+          };
 
-        options.clusterName = cairnLib.options.clusterName;
+          inherit (cairnLib.options) clusterName kubernetesVersion;
+        };
       };
 
     perInstance =
@@ -32,9 +38,12 @@
         };
 
         nixosModule = {
-          imports = [ (import ./member.nix { inherit cairnLib; }) ];
+          imports = [
+            (import ./member.nix { inherit cairnLib; })
+            versionModule
+          ];
           cluster.cairn = {
-            inherit (settings) clusterName;
+            inherit (settings) clusterName kubernetesVersion;
             etcd = {
               advertiseAddress = settings.ip;
               nodes = cairnLib.inventory.nodesOf roles.member.machines;
