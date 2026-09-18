@@ -66,11 +66,11 @@ The clan operator in phase 4 shares none of that: it consumes an evaluated plan 
 
 cairn takes `kubepkgs` as a flake input, injected into the services via `importApply` the same way `a2b` and `inoculant` are (see `modules/service/AGENTS.md`), with coverage added in `checks/consumer-services.nix` since input-closing services are otherwise invisible to CI.
 
-kubepkgs ships each supported Kubernetes minor as a package set of individually built components: `kubectl`, `kubeadm`, `kubelet`, `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, and `kube-proxy`, plus SIG projects, all pinned in `versions.json`/`hashes.json`.
+kubepkgs ships each supported Kubernetes minor as a package set of individually built components: `kubectl`, `kubeadm`, `kubelet`, `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, and `kube-proxy`, plus SIG projects and a `deps` roster carrying `etcd`, `etcdctl` and `etcdutl`, all pinned in `packages.json`.
 
 The nixpkgs `services.kubernetes` module takes a single combined package (`services.kubernetes.package`) and expects every component under its `bin/`, plus a `pause` passthru derivation that `kubelet.nix` wraps into the sandbox image.
 The lowering therefore builds a `symlinkJoin` of the kubepkgs components for the selected minor and attaches `passthru.pause`.
-The pause shim is a tiny version-insensitive C binary, so reusing `pkgs.kubernetes.pause` from nixpkgs is correct until kubepkgs grows its own `pause` package.
+The pause shim is a tiny version-insensitive C binary, so reusing `pkgs.kubernetes.pause` from nixpkgs is correct until kubepkgs grows a `pause` package ([kubepkgs#33](https://github.com/unmango/kubepkgs/issues/33), cairn [#77](https://github.com/UnstoppableMango/cairn/issues/77)).
 `bin/kube-addons` is referenced only by the addon manager, which cairn disables, so the joined package does not need it.
 
 ### Options
@@ -80,9 +80,9 @@ Declared in `flakeModules/cluster/options.nix` and threaded through `flakeModule
 - `cairn.clusters.<name>.versions.kubernetes` (`nullOr str`, e.g. `"1.35"`): selects the kubepkgs minor.
   `null` (the default) follows `pkgs.kubernetes` from nixpkgs, preserving the zero-config behavior.
 - `cairn.clusters.<name>.versions.kubernetesPackage` (`nullOr package`): escape hatch for a fully custom combined package; mutually exclusive with `versions.kubernetes`.
-- `cairn.clusters.<name>.versions.etcdPackage` (`nullOr package`): sets `services.etcd.package`.
-  kubepkgs does not ship etcd, so pinning etcd independently of nixpkgs means passing a package here.
-  Folding etcd into kubepkgs is a natural follow-up.
+- `cairn.clusters.<name>.versions.etcdPackage` (`nullOr package`): overrides the etcd server the minor selects, for pinning etcd independently of the Kubernetes version.
+  Members otherwise run the pinned minor's etcd from kubepkgs' `deps` roster, and `etcdctl`/`etcdutl` on their PATH come from the same place.
+  Unpinned clusters still follow nixpkgs' `pkgs.etcd`, which carries all three binaries in one package.
 
 Consumers hand-writing an inventory get the same knobs as service settings, per the usual two-file rule for the option tree.
 
@@ -221,7 +221,7 @@ It assumes Phase 0 has landed.
 | In-cluster manifests during upgrade | inoculant, unchanged | Content-addressed re-fire already does this; it must not become a coordinator |
 | Rollback | nix generations + git | Already present; the tool only fronts it |
 
-kubepkgs' SIG packages (`metrics-server`, `kube-state-metrics`, `external-dns`) are natural future cairn addons delivered through inoculant, versioned in lockstep with the cluster minor.
+kubepkgs' SIG packages (`metrics-server`, `kube-state-metrics`, `external-dns`) are natural future cairn addons delivered through inoculant, versioned in lockstep with the cluster minor ([#78](https://github.com/UnstoppableMango/cairn/issues/78)).
 
 ## Testing
 

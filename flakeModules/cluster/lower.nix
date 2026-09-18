@@ -155,10 +155,16 @@ let
 
         (instance (svc.etcd.enable && svc.etcd.machines != [ ]) "${prefix}etcd" {
           module = mkModule "etcd";
-          roles.member = mkRole svc.etcd "etcd" svc.etcd.machines (m: {
-            ip = machineIp m;
-            inherit (cluster) clusterName;
-          });
+          roles.member = mkRole svc.etcd "etcd" svc.etcd.machines (
+            m:
+            {
+              ip = machineIp m;
+              inherit (cluster) clusterName;
+            }
+            // optionalAttrs (effectiveVersion m != null) {
+              kubernetesVersion = effectiveVersion m;
+            }
+          );
         })
 
         (instance (svc.apiserver.enable && svc.apiserver.machines != [ ]) "${prefix}apiserver" {
@@ -298,7 +304,7 @@ let
         services.kubernetes.package = cluster.versions.kubernetesPackage;
       }
       ++ optional (cluster.versions.etcdPackage != null && elem mname etcdMachines) {
-        services.etcd.package = cluster.versions.etcdPackage;
+        cluster.cairn.etcd.package = cluster.versions.etcdPackage;
       }
       ++ optional (elem mname corednsMachines) {
         cluster.cairn.coredns = corednsConfig;

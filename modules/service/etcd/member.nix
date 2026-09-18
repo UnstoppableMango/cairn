@@ -25,6 +25,20 @@ in
   options.cluster.cairn.etcd = {
     nodes = cairnLib.options.mkNodes "All etcd member nodes with their names and IPs.";
 
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = pkgs.etcd;
+      defaultText = lib.literalExpression "pkgs.etcd";
+      description = "etcd server this member runs. A pinned Kubernetes minor supplies the matching etcd; see version.nix.";
+    };
+
+    tools = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = [ cfg.package ];
+      defaultText = lib.literalExpression "[ config.cluster.cairn.etcd.package ]";
+      description = "Packages putting etcdctl and etcdutl on the member's PATH. nixpkgs ships them inside the server package; kubepkgs builds them separately.";
+    };
+
     advertiseAddress = lib.mkOption {
       type = lib.types.str;
       description = "IP address this node advertises for etcd client/peer traffic.";
@@ -59,6 +73,7 @@ in
     };
 
     services.etcd = {
+      inherit (cfg) package;
       # The inventory machine name is the machine's hostname, so this matches
       # the name this node is listed under in `initialCluster`.
       name = config.networking.hostName;
@@ -84,7 +99,7 @@ in
       2380
     ];
 
-    environment.systemPackages = [ pkgs.etcd ];
+    environment.systemPackages = cfg.tools;
 
     environment.variables = {
       ETCDCTL_ENDPOINTS = "https://127.0.0.1:2379";

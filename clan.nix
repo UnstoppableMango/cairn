@@ -17,7 +17,7 @@ in
 
   modules."@UnstoppableMango/pki" = import ./modules/service/pki;
   modules."@UnstoppableMango/etcd" = importApply ./modules/service/etcd {
-    inherit cairnLib;
+    inherit cairnLib kubepkgs;
   };
   modules."@UnstoppableMango/apiserver" = importApply ./modules/service/apiserver {
     inherit cairnLib;
