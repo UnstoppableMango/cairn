@@ -89,6 +89,7 @@ let
           "kubeconfig"
           "kubelet"
           "loadbalancer"
+          "metrics-server"
           "network"
           "pki"
         ];
@@ -195,6 +196,25 @@ let
       msg = "the version pin reaches the kubectl on the machine's PATH";
       cond =
         consumer.config.nixosConfigurations.cp1.config.cluster.cairn.kubeconfig.kubectl == pinned.kubectl;
+    }
+    {
+      msg = "metrics-server bootstraps from the control-plane machines";
+      cond = instances."metrics-server".roles.control-plane.machines ? cp1;
+    }
+    {
+      # The addon's image comes from the pinned minor's kubepkgs build, since
+      # nixpkgs ships no metrics-server at all.
+      msg = "the pinned minor supplies the metrics-server image";
+      cond =
+        let
+          ms = consumer.config.nixosConfigurations.cp1.config.cluster.cairn.metricsServer;
+        in
+        ms.package.pname == "metrics-server"
+        && ms.nodeNames == [
+          "cp1"
+          "cp2"
+          "cp3"
+        ];
     }
     {
       msg = "apiserver health checking reaches the loadbalancer and defaults on";

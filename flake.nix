@@ -140,6 +140,12 @@
               cairnModules = config.flake.clan.modules;
             };
 
+            # Coverage for the hand-authored addon manifests, which the VM
+            # test cannot reach (see checks/addon-manifests.nix).
+            checks.addon-manifests = import ./checks/addon-manifests.nix {
+              inherit lib pkgs;
+            };
+
             treefmt = {
               programs = {
                 nixfmt.enable = true;

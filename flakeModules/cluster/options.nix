@@ -441,6 +441,64 @@ let
           };
         };
 
+        metrics-server = {
+          inherit (common "metrics-server") settings extraModules;
+
+          enable = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Bootstrap metrics-server manifests via inoculant, serving the Metrics API.";
+          };
+
+          machines = mkMachinesOption {
+            default = controlPlane;
+            defaultText = "every control-plane machine";
+            description = "Machines metrics-server may be scheduled onto, and from which its manifests are bootstrapped.";
+          };
+
+          nodeNames = mkOption {
+            type = types.nullOr (types.listOf types.str);
+            default = null;
+            description = ''
+              Machines metrics-server pods may be scheduled onto, as node
+              affinity in the generated Deployment. `null` uses `machines`.
+              These must run a kubelet and have the pki service assigned,
+              since the pod mounts the cluster CA off the node.
+            '';
+          };
+
+          replicas = mkOption {
+            type = types.int;
+            default = 1;
+            description = "Number of metrics-server pod replicas.";
+          };
+
+          metricResolution = mkOption {
+            type = types.str;
+            default = "15s";
+            description = "How often metrics-server scrapes kubelets. Must stay below the 60s window the Metrics API serves.";
+          };
+
+          extraArgs = mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            example = [ "--kubelet-insecure-tls" ];
+            description = "Extra arguments appended to the metrics-server container's command line.";
+          };
+
+          package = mkOption {
+            type = types.nullOr types.package;
+            default = null;
+            description = "metrics-server build the image is made from. `null` takes the cluster's pinned kubepkgs minor, or kubepkgs' newest when nothing is pinned.";
+          };
+
+          image = mkOption {
+            type = types.nullOr types.package;
+            default = null;
+            description = "Docker image seeded for the metrics-server container. `null` keeps the service's own image, built from `package`.";
+          };
+        };
+
         flux = {
           inherit (common "flux") settings extraModules;
 

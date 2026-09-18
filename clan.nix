@@ -38,6 +38,9 @@ in
     inherit inoculant;
   };
   modules."@UnstoppableMango/coredns" = import ./modules/service/coredns;
+  modules."@UnstoppableMango/metrics-server" = importApply ./modules/service/metrics-server {
+    inherit cairnLib kubepkgs;
+  };
   modules."@UnstoppableMango/flux" = importApply ./modules/service/flux {
     inherit a2b;
   };
