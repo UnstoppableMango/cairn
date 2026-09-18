@@ -282,16 +282,14 @@ let
         kubelet = {
           inherit (common "kubelet") enable settings extraModules;
 
-          controlPlaneMachines = mkMachinesOption {
-            default = controlPlane;
-            defaultText = "every control-plane machine";
-            description = "Machines running kubelet alongside an apiserver.";
-          };
-
-          workerMachines = mkMachinesOption {
-            default = workers;
-            defaultText = "every worker machine";
-            description = "Machines running a standalone (node-only) kubelet.";
+          machines = mkMachinesOption {
+            default = machineNames;
+            defaultText = "every machine";
+            description = ''
+              Machines running a kubelet, and so appearing as Kubernetes
+              nodes. Whether pods schedule onto one is `machines.<name>.schedulable`,
+              which a `worker` machine has by definition.
+            '';
           };
 
           rootDir = mkOption {

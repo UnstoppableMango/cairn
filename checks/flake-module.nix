@@ -118,22 +118,29 @@ let
         s.vip == "10.10.0.10" && s.clusterName == "example";
     }
     {
-      msg = "kubelet splits across both of its roles";
+      msg = "every machine runs a kubelet, under one role";
       cond =
-        lib.attrNames instances.kubelet.roles.control-plane.machines == [
+        lib.attrNames instances.kubelet.roles.node.machines == [
           "cp1"
           "cp2"
           "cp3"
-        ]
-        &&
-          lib.attrNames instances.kubelet.roles.worker.machines == [
-            "worker1"
-            "worker2"
-          ];
+          "worker1"
+          "worker2"
+        ];
     }
     {
-      msg = "workers carry the cluster-wide settings the control plane would otherwise supply";
-      cond = (settingsOf "kubelet" "worker" "worker1").vip == "10.10.0.10";
+      msg = "every kubelet carries the cluster-wide settings";
+      cond =
+        (settingsOf "kubelet" "node" "worker1").vip == "10.10.0.10"
+        && (settingsOf "kubelet" "node" "cp1").vip == "10.10.0.10";
+    }
+    {
+      # Workers take pods; control-plane machines are nodes without being
+      # scheduling targets, unless `machines.<name>.schedulable` says so.
+      msg = "schedulability follows the machine's role";
+      cond =
+        (settingsOf "kubelet" "node" "worker1").schedulable
+        && !(settingsOf "kubelet" "node" "cp1").schedulable;
     }
     {
       msg = "per-machine keepalived priorities survive the lowering";
@@ -142,10 +149,10 @@ let
         && (settingsOf "loadbalancer" "control-plane" "cp3").keepalivedPriority == 50;
     }
     {
-      msg = "the pinned Kubernetes minor reaches both kubelet roles";
+      msg = "the pinned Kubernetes minor reaches every kubelet";
       cond =
-        (settingsOf "kubelet" "worker" "worker1").kubernetesVersion == "1.36"
-        && (settingsOf "kubelet" "control-plane" "cp1").kubernetesVersion == "1.36";
+        (settingsOf "kubelet" "node" "worker1").kubernetesVersion == "1.36"
+        && (settingsOf "kubelet" "node" "cp1").kubernetesVersion == "1.36";
     }
     {
       # The kubepkgs-built symlinkJoin lands as the machine's combined

@@ -14,6 +14,12 @@ in
       description = "IP address this node advertises for kubelet (included in the kubelet server certificate's SAN).";
     };
 
+    schedulable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether pods may be scheduled onto this node.";
+    };
+
     rootDir = lib.mkOption {
       type = lib.types.path;
       default = "/var/lib/kubelet";

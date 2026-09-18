@@ -23,36 +23,8 @@ in
   manifest.name = "kubelet";
   manifest.readme = builtins.readFile ./README.md;
 
-  roles.control-plane = {
-    description = "kubelet running alongside kube-apiserver on a control-plane node.";
-
-    interface =
-      { lib, ... }:
-      {
-        imports = [ kubernetesVersion ];
-
-        options.ip = lib.mkOption {
-          type = lib.types.str;
-          description = "IP address of this control-plane node.";
-        };
-      };
-
-    perInstance =
-      { settings, ... }:
-      {
-        nixosModule = {
-          imports = [
-            ./common.nix
-            versionModule
-          ];
-          cluster.cairn.kubelet.advertiseAddress = settings.ip;
-          cluster.cairn.kubernetesVersion = settings.kubernetesVersion;
-        };
-      };
-  };
-
-  roles.worker = {
-    description = "kubelet running on a worker (node-only) machine.";
+  roles.node = {
+    description = "Kubernetes node: a kubelet, schedulable or not.";
 
     interface =
       { lib, ... }:
@@ -62,7 +34,23 @@ in
         options = {
           ip = lib.mkOption {
             type = lib.types.str;
-            description = "IP address of this worker node.";
+            description = "IP address of this node.";
+          };
+
+          schedulable = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = ''
+              Give the machine the NixOS `node` role, so pods can schedule
+              onto it. Set it false on a machine that runs a kubelet only to
+              appear as a Node, one that also runs an apiserver: nixpkgs
+              taints a master-only machine unschedulable.
+
+              The kubelet itself comes from the NixOS `node` role or from a
+              co-located apiserver's `master` role, so `schedulable = false`
+              on a machine with no apiserver leaves no kubelet running at
+              all.
+            '';
           };
 
           inherit (cairnLib.options) vip clusterName;
@@ -74,12 +62,15 @@ in
       {
         nixosModule = {
           imports = [
-            ./worker.nix
+            ./node.nix
             versionModule
           ];
           cluster.cairn = {
             inherit (settings) vip clusterName;
-            kubelet.advertiseAddress = settings.ip;
+            kubelet = {
+              advertiseAddress = settings.ip;
+              inherit (settings) schedulable;
+            };
             kubernetesVersion = settings.kubernetesVersion;
           };
         };

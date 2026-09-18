@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   ...
 }:
 let
@@ -13,7 +14,9 @@ in
   ];
 
   config.services.kubernetes = {
-    roles = [ "node" ];
+    # `master` comes from the apiserver service where one runs alongside.
+    # This role only ever adds `node`, and only where pods are wanted.
+    roles = lib.optional cfg.kubelet.schedulable "node";
     masterAddress = cfg.vip;
     apiserverAddress = cfg.apiServerURL;
     easyCerts = false;

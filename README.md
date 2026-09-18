@@ -40,7 +40,7 @@ Each Kubernetes component is its own clan service under `modules/service/`, so c
 | [`pki`](modules/service/pki/README.md) | `node` | — (provides the CA) |
 | [`etcd`](modules/service/etcd/README.md) | `member` | `pki` |
 | [`apiserver`](modules/service/apiserver/README.md) | `control-plane` | `pki`, `etcd`, `kubelet` |
-| [`kubelet`](modules/service/kubelet/README.md) | `control-plane`, `worker` | `pki` |
+| [`kubelet`](modules/service/kubelet/README.md) | `node` | `pki` |
 | [`loadbalancer`](modules/service/loadbalancer/README.md) | `control-plane` | `apiserver` |
 | [`network`](modules/service/network/README.md) | `node` | `pki`, running apiserver at the VIP |
 | [`kubeconfig`](modules/service/kubeconfig/README.md) | `node` | `pki` |

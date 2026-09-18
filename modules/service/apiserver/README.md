@@ -10,8 +10,8 @@ Consumes the [etcd](../etcd) service's exported client URLs (via clan's
 [loadbalancer](../loadbalancer) service to build its HAProxy backend list.
 
 Needs [pki](../pki) assigned to the same machines for certificates, and
-[kubelet](../kubelet)'s `control-plane` role for the kubelet running
-alongside the apiserver. It does not need an etcd member on its own machine:
+[kubelet](../kubelet)'s `node` role for the kubelet running alongside the
+apiserver. It does not need an etcd member on its own machine:
 it dials etcd over the network, and the client cert it authenticates with is
 declared in `../etcd-client.nix`, shared with the [etcd](../etcd) role.
 

@@ -314,7 +314,7 @@ machine.
 | `@UnstoppableMango/pki` | `node` | CA + cfssl cert-generator machinery; consumers declare their own cert specs |
 | `@UnstoppableMango/etcd` | `member` | etcd cluster member; exports client URLs |
 | `@UnstoppableMango/apiserver` | `control-plane` | kube-apiserver, controller-manager, scheduler; consumes etcd exports, exports node info |
-| `@UnstoppableMango/kubelet` | `control-plane`, `worker` | kubelet, either alongside apiserver or standalone on workers |
+| `@UnstoppableMango/kubelet` | `node` | kubelet, on any machine that should appear as a Kubernetes node |
 | `@UnstoppableMango/loadbalancer` | `control-plane` | keepalived VIP + HAProxy fronting the apiserver cluster |
 | `@UnstoppableMango/network` | `node` | Flannel CNI + kernel bridge/forwarding prerequisites |
 | `@UnstoppableMango/kubeconfig` | `node` | Installs the admin kubeconfig + kubectl |
