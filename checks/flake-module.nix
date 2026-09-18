@@ -190,14 +190,11 @@ let
       cond = (settingsOf "kubeconfig" "node" "cp1").kubernetesVersion == "1.36";
     }
     {
-      # The kubectl on an operator's PATH comes from the pinned minor rather
-      # than nixpkgs, which can drift past the one-minor kubectl skew.
+      # The kubectl on an operator's PATH is the pinned minor's, not nixpkgs',
+      # which can drift past the one-minor kubectl skew.
       msg = "the version pin reaches the kubectl on the machine's PATH";
       cond =
-        let
-          kubectl = consumer.config.nixosConfigurations.cp1.config.cluster.cairn.kubeconfig.kubectl;
-        in
-        kubectl.pname == "kubectl" && kubectl != pkgs.kubectl;
+        consumer.config.nixosConfigurations.cp1.config.cluster.cairn.kubeconfig.kubectl == pinned.kubectl;
     }
     {
       msg = "apiserver health checking reaches the loadbalancer and defaults on";
