@@ -43,8 +43,13 @@ in
             description = ''
               Give the machine the NixOS `node` role, so pods can schedule
               onto it. Set it false on a machine that runs a kubelet only to
-              appear as a Node, typically one that also runs an apiserver:
-              nixpkgs taints a master-only machine unschedulable.
+              appear as a Node, one that also runs an apiserver: nixpkgs
+              taints a master-only machine unschedulable.
+
+              The kubelet itself comes from the NixOS `node` role or from a
+              co-located apiserver's `master` role, so `schedulable = false`
+              on a machine with no apiserver leaves no kubelet running at
+              all.
             '';
           };
 

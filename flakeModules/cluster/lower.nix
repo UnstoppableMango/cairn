@@ -245,8 +245,8 @@ let
   etcdMachines = assigned svc.etcd.enable svc.etcd.machines;
   corednsMachines = assigned svc.coredns.enable svc.coredns.machines;
 
-  # kubelet/common.nix declares `cluster.cairn.kubelet.*`, and both roles
-  # import it, so this covers control-plane and worker machines alike.
+  # kubelet/common.nix declares `cluster.cairn.kubelet.*`, and the node role
+  # imports it, so this covers every machine running a kubelet.
   kubeletMachines = assigned svc.kubelet.enable svc.kubelet.machines;
 
   # Machines whose role modules import modules/service/cluster.nix, and so

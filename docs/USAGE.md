@@ -361,6 +361,9 @@ Each needs its own IP, the VIP, and the cluster name: every kubelet reaches the 
 
 `schedulable` decides whether pods land there.
 It defaults to `true`; set it false on a machine running an apiserver, since nixpkgs taints a master-only machine unschedulable and giving it the NixOS `node` role would undo that.
+A machine with neither the NixOS `node` role nor an apiserver runs no kubelet at all, so `schedulable = false` belongs only on a control-plane machine.
+
+Migrating an inventory written against the older `control-plane`/`worker` kubelet roles: move both machine lists under `roles.node.machines`, set `schedulable = false` on the machines that were `control-plane`, and give every machine `vip` and `clusterName`, which the `control-plane` role previously took from the co-located apiserver.
 
 ```nix
 inventory.instances.kubelet = {
