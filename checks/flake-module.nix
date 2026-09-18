@@ -17,11 +17,16 @@
   cairnModules,
   clan-core,
   nixpkgs,
+  kubepkgs,
   pkgs,
   lib,
 }:
 let
   inherit (pkgs.stdenv.hostPlatform) system;
+
+  # The exact release the example pins, so the assertions below can name the
+  # derivations a pinned machine must end up with rather than describe them.
+  pinned = kubepkgs.legacyPackages.${system}.kubernetes."1.36";
 
   cairnLib = import ../lib { inherit lib; };
 
@@ -165,16 +170,20 @@ let
       cond = (settingsOf "etcd" "member" "cp1").kubernetesVersion == "1.36";
     }
     {
-      # The member's etcd comes from the pinned minor's kubepkgs deps roster,
-      # not from nixpkgs. Evaluation-only: the derivation is never built.
+      # The member's etcd is the pinned minor's, named outright: a weaker
+      # claim (an etcd that is not nixpkgs') also holds for every other minor
+      # kubepkgs ships. Evaluation-only; the derivations are never built.
       msg = "the version pin reaches the etcd server and its tools";
       cond =
         let
           etcd = consumer.config.nixosConfigurations.cp1.config;
         in
-        etcd.services.etcd.package.pname == "etcd"
-        && etcd.services.etcd.package != pkgs.etcd
-        && lib.length etcd.cluster.cairn.etcd.tools == 2;
+        etcd.services.etcd.package == pinned.deps.etcd
+        &&
+          etcd.cluster.cairn.etcd.tools == [
+            pinned.deps.etcdctl
+            pinned.deps.etcdutl
+          ];
     }
     {
       msg = "apiserver health checking reaches the loadbalancer and defaults on";

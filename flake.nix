@@ -127,7 +127,7 @@
             # nothing else in CI exercises (see checks/flake-module.nix).
             checks.flake-module = import ./checks/flake-module.nix {
               inherit lib pkgs;
-              inherit (inputs) clan-core nixpkgs;
+              inherit (inputs) clan-core nixpkgs kubepkgs;
               cairnModules = config.flake.clan.modules;
             };
 
