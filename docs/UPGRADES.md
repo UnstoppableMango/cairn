@@ -221,7 +221,9 @@ It assumes Phase 0 has landed.
 | In-cluster manifests during upgrade | inoculant, unchanged | Content-addressed re-fire already does this; it must not become a coordinator |
 | Rollback | nix generations + git | Already present; the tool only fronts it |
 
-kubepkgs' SIG packages (`metrics-server`, `kube-state-metrics`, `external-dns`) are natural future cairn addons delivered through inoculant, versioned in lockstep with the cluster minor ([#78](https://github.com/UnstoppableMango/cairn/issues/78)).
+kubepkgs' SIG packages are cairn addons delivered through inoculant, versioned in lockstep with the cluster minor ([#78](https://github.com/UnstoppableMango/cairn/issues/78)).
+`metrics-server` is implemented; `kube-state-metrics` and `external-dns` follow the same shape.
+nixpkgs ships none of them, so an unpinned cluster takes kubepkgs' newest minor rather than falling back.
 
 ## Testing
 

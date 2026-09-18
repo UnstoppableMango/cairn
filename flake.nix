@@ -114,6 +114,7 @@
                 "@UnstoppableMango/kubeconfig"
                 "@UnstoppableMango/inoculant"
                 "@UnstoppableMango/coredns"
+                "@UnstoppableMango/metrics-server"
               ] config.flake.clan.modules;
             };
 
@@ -138,6 +139,12 @@
               inherit lib pkgs;
               inherit (inputs) clan-core nixpkgs;
               cairnModules = config.flake.clan.modules;
+            };
+
+            # Coverage for the hand-authored addon manifests, which the VM
+            # test cannot reach (see checks/addon-manifests.nix).
+            checks.addon-manifests = import ./checks/addon-manifests.nix {
+              inherit lib pkgs;
             };
 
             treefmt = {

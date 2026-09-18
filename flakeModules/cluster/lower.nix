@@ -239,6 +239,16 @@ let
           roles.control-plane = mkRole svc.coredns "coredns" svc.coredns.machines (_: { });
         })
 
+        (instance (svc.metrics-server.enable && svc.metrics-server.machines != [ ])
+          "${prefix}metrics-server"
+          {
+            module = mkModule "metrics-server";
+            roles.control-plane = mkRole svc.metrics-server "metrics-server" svc.metrics-server.machines (
+              m: optionalAttrs (effectiveVersion m != null) { kubernetesVersion = effectiveVersion m; }
+            );
+          }
+        )
+
         (instance (svc.flux.enable && svc.flux.machines != [ ]) "${prefix}flux" {
           module = mkModule "flux";
           roles.control-plane = mkRole svc.flux "flux" svc.flux.machines (_: {
@@ -256,6 +266,7 @@ let
   pkiMachines = assigned svc.pki.enable svc.pki.machines;
   etcdMachines = assigned svc.etcd.enable svc.etcd.machines;
   corednsMachines = assigned svc.coredns.enable svc.coredns.machines;
+  metricsServerMachines = assigned svc.metrics-server.enable svc.metrics-server.machines;
 
   # kubelet/common.nix declares `cluster.cairn.kubelet.*`, and the node role
   # imports it, so this covers every machine running a kubelet.
@@ -281,6 +292,15 @@ let
   // optionalAttrs (svc.coredns.clusterIp != null) { inherit (svc.coredns) clusterIp; }
   // optionalAttrs (svc.coredns.corefile != null) { inherit (svc.coredns) corefile; }
   // optionalAttrs (svc.coredns.image != null) { inherit (svc.coredns) image; };
+
+  metricsServerConfig = {
+    inherit (svc.metrics-server) replicas metricResolution extraArgs;
+  }
+  // optionalAttrs (svc.metrics-server.nodeNames != null) {
+    inherit (svc.metrics-server) nodeNames;
+  }
+  // optionalAttrs (svc.metrics-server.package != null) { inherit (svc.metrics-server) package; }
+  // optionalAttrs (svc.metrics-server.image != null) { inherit (svc.metrics-server) image; };
 
   machineModule = mname: m: {
     imports = [
@@ -314,6 +334,9 @@ let
       }
       ++ optional (elem mname corednsMachines) {
         cluster.cairn.coredns = corednsConfig;
+      }
+      ++ optional (elem mname metricsServerMachines) {
+        cluster.cairn.metricsServer = metricsServerConfig;
       }
       ++ optional (elem mname kubeletMachines) {
         cluster.cairn.kubelet.rootDir = svc.kubelet.rootDir;

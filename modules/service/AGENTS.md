@@ -320,6 +320,7 @@ machine.
 | `@UnstoppableMango/kubeconfig` | `node` | Installs the admin kubeconfig + kubectl |
 | `@UnstoppableMango/inoculant` | `node` | Shared inoculant `clusterAdmin` wiring for coredns/flux, plus `nodeLabels` |
 | `@UnstoppableMango/coredns` | `control-plane` | Optional CoreDNS bootstrap via inoculant |
+| `@UnstoppableMango/metrics-server` | `control-plane` | Optional metrics-server bootstrap via inoculant, image from kubepkgs |
 | `@UnstoppableMango/flux` | `control-plane` | Optional Flux GitOps bootstrap via inoculant |
 
 ## Checklist: New Service

@@ -65,6 +65,10 @@
       virtualRouterId = 51;
     };
 
+    # Optional: the Metrics API, for `kubectl top` and resource-metrics HPAs.
+    # The image comes from the pinned minor's kubepkgs build.
+    metrics-server.enable = true;
+
     # Optional: point Flux at your own GitOps repository. Drop this block
     # entirely if you don't want a GitOps bootstrap.
     flux = {

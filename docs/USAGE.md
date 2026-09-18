@@ -149,6 +149,8 @@ The rest of the surface, all optional:
 | `services.pki.certs` | `{}` | Additional certificates for your own workloads |
 | `services.etcd.initialClusterState` | `"new"` | Set to `"existing"` when replacing a member or restoring into a live cluster |
 | `services.coredns.{clusterIp,clusterDomain,replicas,corefile,image}` | derived | CoreDNS tuning |
+| `services.metrics-server.enable` | `false` | Bootstrap metrics-server, serving the Metrics API |
+| `services.metrics-server.{replicas,metricResolution,extraArgs,nodeNames,package,image}` | derived | metrics-server tuning |
 | `services.<name>.machines` | from each machine's `role` | Which machines run this service |
 | `services.<name>.settings` | `{}` | Raw inventory settings merged over the generated ones |
 | `services.<name>.extraModules` | `[]` | Extra NixOS modules for this service's role assignments |
@@ -479,7 +481,7 @@ inventory.instances.flux = {
 
 ### NixOS-level options
 
-A handful of cairn's options live only on the NixOS side, with no inventory setting behind them: `cluster.cairn.apiServerPort`, `cluster.cairn.etcd.initialClusterState`, the `cluster.cairn.coredns.*` knobs, and the `cluster.cairn.pki` `override` escape hatches.
+A handful of cairn's options live only on the NixOS side, with no inventory setting behind them: `cluster.cairn.apiServerPort`, `cluster.cairn.etcd.initialClusterState`, the `cluster.cairn.coredns.*` and `cluster.cairn.metricsServer.*` knobs, and the `cluster.cairn.pki` `override` escape hatches.
 Set those in `clan.machines.<name>`, on machines assigned a service that declares them.
 `cairn.clusters` does exactly this for you.
 
