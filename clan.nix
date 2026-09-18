@@ -32,7 +32,7 @@ in
     inherit cairnLib;
   };
   modules."@UnstoppableMango/kubeconfig" = importApply ./modules/service/kubeconfig {
-    inherit cairnLib;
+    inherit cairnLib kubepkgs;
   };
   modules."@UnstoppableMango/inoculant" = importApply ./modules/service/inoculant {
     inherit inoculant;
