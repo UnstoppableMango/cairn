@@ -53,11 +53,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789692666,
-        "narHash": "sha256-YAk1cEF0Av3y+M1yu71hOibOS0cAqqAS7O1TgQOd50Q=",
-        "rev": "63c0a5934bb72c0704695bb8de09374ca0e4bd48",
+        "lastModified": 1789744075,
+        "narHash": "sha256-1NReCv+6OyQZbjKIUqHUaIXZd97SarGX6E0BaJCmG7M=",
+        "rev": "ea956617d78004f1f0fbdb592b13c2a4db4797f4",
         "type": "tarball",
-        "url": "https://git.clan.lol/api/v1/repos/clan/clan-core/archive/63c0a5934bb72c0704695bb8de09374ca0e4bd48.tar.gz"
+        "url": "https://git.clan.lol/api/v1/repos/clan/clan-core/archive/ea956617d78004f1f0fbdb592b13c2a4db4797f4.tar.gz"
       },
       "original": {
         "type": "tarball",
@@ -382,11 +382,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789448969,
-        "narHash": "sha256-poHl1acbZpkzsFucWCtKaKF3lWsfvfey/KpqYvpCARc=",
+        "lastModified": 1789766651,
+        "narHash": "sha256-xCgimWY+tucgdgmv6Ob2LUx6m7LH6t0YubJZowD/IcU=",
         "owner": "unmango",
         "repo": "kubepkgs",
-        "rev": "5df72e8afc0a3164956c79e79e0765a61e57fb16",
+        "rev": "c6927571174cbac898b4f5631259fa7c861f751d",
         "type": "github"
       },
       "original": {
@@ -565,11 +565,11 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1789546076,
-        "narHash": "sha256-zVxLZiSnmaaPLwnhj7pwmqe3axBg/C6nG5JZsJMh2g4=",
+        "lastModified": 1789684949,
+        "narHash": "sha256-ZKhUe/2IJUq1JhKxKMu8rbkgSGmPP2ZCqlIPn40aGCM=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
+        "rev": "e554fab72f81915600f3f449b786fd9af40439a5",
         "type": "github"
       },
       "original": {
@@ -669,11 +669,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1789623319,
-        "narHash": "sha256-kmlp8rPrvrXn58YiaANHKSWUijtUc7pwgerIywosOIM=",
+        "lastModified": 1789691124,
+        "narHash": "sha256-k+I+R6uwHX3VcJ7326qLV6vCahZUgsVl+i8sSU/Stxk=",
         "owner": "Mic92",
         "repo": "sops-nix",
-        "rev": "16954c1c360c3dc4d4b3b3e64df59f7e89452cb1",
+        "rev": "1e73e8f7176d65e1b55e324de099bbfff4b2c574",
         "type": "github"
       },
       "original": {
