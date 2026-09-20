@@ -149,6 +149,23 @@ let
         && !(settingsOf "kubelet" "node" "cp1").schedulable;
     }
     {
+      # A machine's own cap wins; everything else takes the cluster value,
+      # which is kubelet's 110 until the cluster says otherwise.
+      msg = "a per-machine maxPods overrides the cluster default";
+      cond =
+        (settingsOf "kubelet" "node" "worker1").maxPods == 250
+        && (settingsOf "kubelet" "node" "worker2").maxPods == 110
+        && (settingsOf "kubelet" "node" "cp1").maxPods == 110;
+    }
+    {
+      # The role setting has to reach the KubeletConfiguration file, not stop
+      # at the inventory.
+      msg = "maxPods reaches the rendered kubelet configuration";
+      cond =
+        consumer.config.nixosConfigurations.worker1.config.services.kubernetes.kubelet.extraConfig.maxPods
+        == 250;
+    }
+    {
       msg = "per-machine keepalived priorities survive the lowering";
       cond =
         (settingsOf "loadbalancer" "control-plane" "cp1").keepalivedPriority == 150

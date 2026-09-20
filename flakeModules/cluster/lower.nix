@@ -68,6 +68,14 @@ let
     else
       cluster.versions.kubernetes;
 
+  # Pods a machine's kubelet admits: its own override, else the cluster's.
+  effectiveMaxPods =
+    m:
+    if cluster.machines.${m}.maxPods != null then
+      cluster.machines.${m}.maxPods
+    else
+      svc.kubelet.maxPods;
+
   minorOf = v: lib.toInt (lib.elemAt (lib.splitString "." v) 1);
 
   anyMachinePin = lib.any (m: m.kubernetesVersion != null) (lib.attrValues cluster.machines);
@@ -189,6 +197,7 @@ let
               # nixpkgs taints a master-only machine unschedulable, so a
               # control-plane machine is a node only when asked to be.
               schedulable = cluster.machines.${m}.role == "worker" || cluster.machines.${m}.schedulable;
+              maxPods = effectiveMaxPods m;
             }
             // clusterSettings
             // optionalAttrs (effectiveVersion m != null) {

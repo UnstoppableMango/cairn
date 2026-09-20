@@ -40,6 +40,19 @@ in
         relocation.
       '';
     };
+
+    maxPods = lib.mkOption {
+      type = lib.types.ints.positive;
+      default = 110;
+      description = ''
+        Pods the kubelet will admit, kubelet's own default being 110.
+
+        The ceiling is the node's podCIDR: kube-controller-manager hands out
+        a /24 per node by default, so 254 addresses, and a kubelet admitting
+        more pods than that strands the excess without an IP. Raise
+        `--node-cidr-mask-size` before going past it.
+      '';
+    };
   };
 
   config = {
@@ -71,6 +84,10 @@ in
       # option of its own, and emits it ahead of extraOpts. A second --root-dir
       # wins, since pflag overwrites a scalar flag on repeat.
       extraOpts = "--root-dir=${cfg.rootDir}";
+      # KubeletConfiguration rather than the deprecated --max-pods flag.
+      # extraConfig is attrsOf json, so this merges per-key with whatever
+      # else a consumer puts there (systemReserved, evictionHard, ...).
+      extraConfig.maxPods = cfg.maxPods;
       clientCaFile = pki.ca.cert;
       tlsCertFile = pki.certs."kubelet-cert".cert;
       tlsKeyFile = pki.certs."kubelet-cert".key;

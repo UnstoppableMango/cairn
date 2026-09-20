@@ -47,6 +47,10 @@
     worker1 = {
       role = "worker";
       ip = "10.10.0.21";
+      # A machine bigger than the rest earns a higher cap than the
+      # cluster-wide `services.kubelet.maxPods`. The node's /24 podCIDR is
+      # the ceiling, at 254 addresses.
+      maxPods = 250;
     };
     worker2 = {
       role = "worker";
