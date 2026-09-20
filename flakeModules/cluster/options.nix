@@ -136,6 +136,19 @@ let
           '';
         };
 
+        maxPods = mkOption {
+          type = types.nullOr types.ints.positive;
+          default = null;
+          example = 250;
+          description = ''
+            Pods this machine's kubelet will admit, overriding the cluster's
+            `services.kubelet.maxPods`. `null` takes the cluster value.
+
+            Size it against the machine, and against the node's podCIDR: the
+            default /24 per node leaves 254 addresses.
+          '';
+        };
+
         schedulable = mkOption {
           type = types.bool;
           default = false;
@@ -300,6 +313,15 @@ let
               drivers hardcode as `hostPath` mounts. nixpkgs points it at
               `services.kubernetes.dataDir` instead, which no CSI driver
               expects.
+            '';
+          };
+
+          maxPods = mkOption {
+            type = types.ints.positive;
+            default = 110;
+            description = ''
+              Pods a kubelet will admit, for machines that do not set
+              `machines.<name>.maxPods`. kubelet's own default is 110.
             '';
           };
         };

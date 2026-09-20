@@ -36,6 +36,15 @@ in
             '';
           };
 
+          maxPods = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 110;
+            description = ''
+              Pods this kubelet will admit. The node's podCIDR is the
+              ceiling: a /24 leaves 254 addresses.
+            '';
+          };
+
           inherit (cairnLib.options) vip clusterName kubernetesVersion;
         };
       };
@@ -52,7 +61,7 @@ in
             inherit (settings) vip clusterName;
             kubelet = {
               advertiseAddress = settings.ip;
-              inherit (settings) schedulable;
+              inherit (settings) schedulable maxPods;
             };
             kubernetesVersion = settings.kubernetesVersion;
           };

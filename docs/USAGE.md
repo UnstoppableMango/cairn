@@ -172,6 +172,17 @@ A per-machine `machines.<name>.kubernetesVersion` overrides the cluster value, a
 `versions.kubernetesPackage` and `versions.etcdPackage` are package-level escape hatches for a fully custom build.
 [`docs/UPGRADES.md`](UPGRADES.md) covers the upgrade procedure built on these knobs.
 
+### Pod capacity
+
+`services.kubelet.maxPods` caps the pods a kubelet admits, cluster-wide, and defaults to kubelet's own 110.
+A per-machine `machines.<name>.maxPods` overrides it, which is how a machine much larger than the rest earns a higher cap:
+
+```nix
+machines.big.maxPods = 250;
+```
+
+The node's podCIDR is the ceiling: kube-controller-manager hands out a /24 per node by default, so 254 addresses, and pods admitted past that get no IP.
+
 ### Machine configuration
 
 Each machine's own NixOS configuration (hardware, filesystems, bootloader) goes in `machines.<name>.nixos`, and anything common to the whole cluster in the cluster's own `nixos`:

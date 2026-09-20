@@ -19,6 +19,16 @@ default on both the `master` and `node` NixOS kubernetes roles), using the
 Needs [pki](../pki) and [network](../network) assigned to the same
 machines.
 
+## Pod capacity
+
+`maxPods` (default `110`, kubelet's own) caps the pods the kubelet admits,
+through `extraConfig.maxPods` in the KubeletConfiguration file rather than
+the deprecated `--max-pods` flag.
+
+The node's podCIDR is the ceiling. kube-controller-manager hands out a /24
+per node by default, so 254 addresses, and pods admitted past that get no
+IP. Widen `--node-cidr-mask-size` before raising `maxPods` above it.
+
 ## Kubernetes version
 
 The role accepts `kubernetesVersion`, a kubepkgs minor such as `"1.36"`.
