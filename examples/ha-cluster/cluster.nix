@@ -54,6 +54,14 @@
       # Extra labels sit on top of the `node-role.kubernetes.io/worker` label
       # every machine gets for its role.
       nodeLabels."example.com/gpu" = "true";
+      # This one also runs a storage daemon outside Kubernetes, so it holds
+      # back memory the other workers have no reason to. Allocatable is
+      # capacity minus these, and the scheduler places against allocatable.
+      systemReserved = {
+        cpu = "2";
+        memory = "4Gi";
+      };
+      evictionHard."memory.available" = "1Gi";
     };
     worker2 = {
       role = "worker";

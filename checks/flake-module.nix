@@ -169,6 +169,41 @@ let
         == 250;
     }
     {
+      # Same precedence as maxPods: the machine's own figure wins, everything
+      # else takes the cluster's, which is empty until the cluster says
+      # otherwise.
+      msg = "a per-machine reservation overrides the cluster default";
+      cond =
+        (settingsOf "kubelet" "node" "worker1").systemReserved == {
+          cpu = "2";
+          memory = "4Gi";
+        }
+        && (settingsOf "kubelet" "node" "worker2").systemReserved == { };
+    }
+    {
+      msg = "reservations reach the rendered kubelet configuration";
+      cond =
+        let
+          cfg = consumer.config.nixosConfigurations.worker1.config.services.kubernetes.kubelet.extraConfig;
+        in
+        cfg.systemReserved == {
+          cpu = "2";
+          memory = "4Gi";
+        }
+        && cfg.evictionHard == { "memory.available" = "1Gi"; };
+    }
+    {
+      # An unset reservation is left out of the KubeletConfiguration rather
+      # than written as `{}`, so a consumer setting one directly on
+      # services.kubernetes.kubelet.extraConfig does not collide.
+      msg = "an unset reservation is absent from the rendered configuration";
+      cond =
+        let
+          cfg = consumer.config.nixosConfigurations.worker2.config.services.kubernetes.kubelet.extraConfig;
+        in
+        !(cfg ? systemReserved) && !(cfg ? kubeReserved) && !(cfg ? evictionHard);
+    }
+    {
       msg = "per-machine keepalived priorities survive the lowering";
       cond =
         (settingsOf "loadbalancer" "control-plane" "cp1").keepalivedPriority == 150

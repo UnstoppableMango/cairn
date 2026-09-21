@@ -82,6 +82,15 @@ let
     else
       svc.kubelet.maxPods;
 
+  # Same precedence for the kubelet reservations, which are the figures that
+  # decide how much of a machine the scheduler may hand out. These are the
+  # settings most likely to differ per machine rather than per cluster: a node
+  # carrying a storage daemon or a build agent has to hold memory back that an
+  # otherwise identical node does not.
+  effectiveReservation =
+    key: m:
+    if cluster.machines.${m}.${key} != null then cluster.machines.${m}.${key} else svc.kubelet.${key};
+
   minorOf = v: lib.toInt (lib.elemAt (lib.splitString "." v) 1);
 
   anyMachinePin = lib.any (m: m.kubernetesVersion != null) (lib.attrValues cluster.machines);
@@ -204,6 +213,9 @@ let
               # control-plane machine is a node only when asked to be.
               schedulable = cluster.machines.${m}.role == "worker" || cluster.machines.${m}.schedulable;
               maxPods = effectiveMaxPods m;
+              systemReserved = effectiveReservation "systemReserved" m;
+              kubeReserved = effectiveReservation "kubeReserved" m;
+              evictionHard = effectiveReservation "evictionHard" m;
             }
             // clusterSettings
             // optionalAttrs (effectiveVersion m != null) {
