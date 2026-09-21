@@ -68,6 +68,12 @@ let
     else
       cluster.versions.kubernetes;
 
+  # The `node-role.kubernetes.io/*` label a machine gets for its role, which
+  # kubelet is forbidden from setting on itself. Merged under the machine's own
+  # `nodeLabels` so an entry there for the same key wins, the way `tags` below
+  # carries the role tag alongside the machine's extras.
+  roleLabel = m: { "node-role.kubernetes.io/${m.role}" = ""; };
+
   # Pods a machine's kubelet admits: its own override, else the cluster's.
   effectiveMaxPods =
     m:
@@ -239,7 +245,7 @@ let
         (instance (svc.inoculant.enable && svc.inoculant.machines != [ ]) "${prefix}inoculant" {
           module = mkModule "inoculant";
           roles.node = mkRole svc.inoculant "inoculant" svc.inoculant.machines (m: {
-            inherit (cluster.machines.${m}) nodeLabels;
+            nodeLabels = roleLabel cluster.machines.${m} // cluster.machines.${m}.nodeLabels;
           });
         })
 

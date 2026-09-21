@@ -34,23 +34,26 @@ let
   # would, so defaults and types apply, then lower it. Going through
   # `evalModules` directly rather than `flake-parts.lib.mkFlake` keeps this to
   # the two files under test.
-  evaluated =
-    (lib.evalModules {
-      modules = [
-        { options.cairn = import ../flakeModules/cluster/options.nix { inherit lib; }; }
-        {
-          cairn.clusters.example = import ../examples/ha-cluster/cluster.nix {
-            inherit system;
-            moduleInput = "cairn";
-          };
-        }
-      ];
-    }).config.cairn.clusters.example;
+  exampleSpec = import ../examples/ha-cluster/cluster.nix {
+    inherit system;
+    moduleInput = "cairn";
+  };
 
-  lowered = import ../flakeModules/cluster/lower.nix { inherit lib cairnLib; } {
-    name = "example";
-    multi = false;
-  } evaluated;
+  lowerSpec =
+    spec:
+    import ../flakeModules/cluster/lower.nix { inherit lib cairnLib; }
+      {
+        name = "example";
+        multi = false;
+      }
+      (lib.evalModules {
+        modules = [
+          { options.cairn = import ../flakeModules/cluster/options.nix { inherit lib; }; }
+          { cairn.clusters.example = spec; }
+        ];
+      }).config.cairn.clusters.example;
+
+  lowered = lowerSpec exampleSpec;
 
   # Same stand-in for a downstream consumer flake as ./consumer-services.nix:
   # clan reads `config.self.inputs` to resolve `module.input = "cairn"`.
@@ -256,10 +259,41 @@ let
         && consumer.config.nixosConfigurations.worker1.config.clan.core.deployment.requireExplicitUpdate;
     }
     {
-      msg = "node labels default from each machine's role";
+      msg = "node labels carry each machine's role";
       cond =
         (settingsOf "inoculant" "node" "cp1").nodeLabels ? "node-role.kubernetes.io/control-plane"
         && (settingsOf "inoculant" "node" "worker1").nodeLabels ? "node-role.kubernetes.io/worker";
+    }
+    {
+      # worker1 sets nodeLabels in examples/ha-cluster; the role label has to
+      # survive alongside it rather than being replaced by it.
+      msg = "machine node labels merge with the role label";
+      cond =
+        (settingsOf "inoculant" "node" "worker1").nodeLabels == {
+          "node-role.kubernetes.io/worker" = "";
+          "example.com/gpu" = "true";
+        };
+    }
+    {
+      # The merge above passes either way round, since the two keys differ.
+      # Overriding the role key is what pins the order: the machine wins.
+      msg = "a machine node label can override the role label";
+      cond =
+        let
+          overridden = lowerSpec (
+            exampleSpec
+            // {
+              machines = exampleSpec.machines // {
+                worker2 = exampleSpec.machines.worker2 // {
+                  nodeLabels."node-role.kubernetes.io/worker" = "override";
+                };
+              };
+            }
+          );
+        in
+        overridden.inventory.instances.inoculant.roles.node.machines.worker2.settings.nodeLabels == {
+          "node-role.kubernetes.io/worker" = "override";
+        };
     }
     {
       msg = "flux settings reach the control plane";

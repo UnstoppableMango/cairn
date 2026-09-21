@@ -183,6 +183,17 @@ machines.big.maxPods = 250;
 
 The node's podCIDR is the ceiling: kube-controller-manager hands out a /24 per node by default, so 254 addresses, and pods admitted past that get no IP.
 
+### Node labels
+
+Every machine gets `node-role.kubernetes.io/<role>`, applied by inoculant because kubelet is forbidden from setting those on itself.
+`machines.<name>.nodeLabels` adds to that rather than replacing it, so a machine carrying a label of your own keeps its role label:
+
+```nix
+machines.big.nodeLabels."example.com/gpu" = "true";
+```
+
+An entry for the role key overrides it.
+
 ### Machine configuration
 
 Each machine's own NixOS configuration (hardware, filesystems, bootloader) goes in `machines.<name>.nixos`, and anything common to the whole cluster in the cluster's own `nixos`:
