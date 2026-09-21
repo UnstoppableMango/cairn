@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      - uses: unmango/actions/setup-nix@3ec4ed5a6af9c00f6a39e079df488573c77ebda6 # v1.0.1
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
           # A CLI --option can't turn this on for an untrusted user: the nix
@@ -18,9 +18,6 @@ jobs:
           # (the flake's own nixConfig stays IFD-agnostic for consumers).
           extra_nix_config: |
             allow-import-from-derivation = true
-      - uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
-        with:
-          name: unstoppablemango
       # ubuntu-latest (24.04) restricts unprivileged user namespaces via
       # AppArmor by default, which breaks bubblewrap sandboxing (used by
       # clan's vars generators): bwrap fails with "setting up uid map:
