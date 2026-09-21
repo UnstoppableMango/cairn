@@ -51,6 +51,9 @@
       # cluster-wide `services.kubelet.maxPods`. The node's /24 podCIDR is
       # the ceiling, at 254 addresses.
       maxPods = 250;
+      # Extra labels sit on top of the `node-role.kubernetes.io/worker` label
+      # every machine gets for its role.
+      nodeLabels."example.com/gpu" = "true";
     };
     worker2 = {
       role = "worker";

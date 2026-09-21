@@ -72,7 +72,7 @@ let
     );
 
   machineModule =
-    { name, config, ... }:
+    { name, ... }:
     {
       options = {
         role = mkOption {
@@ -103,14 +103,17 @@ let
 
         nodeLabels = mkOption {
           type = types.attrsOf types.str;
-          default = {
-            "node-role.kubernetes.io/${config.role}" = "";
+          default = { };
+          example = {
+            "example.com/ci-runner" = "true";
           };
-          defaultText = literalMD "`{ \"node-role.kubernetes.io/<role>\" = \"\"; }`";
           description = ''
-            Labels inoculant applies to this node, covering the
-            `node-role.kubernetes.io/*` labels kubelet is forbidden from
-            setting itself.
+            Extra labels inoculant applies to this node, on top of the
+            `node-role.kubernetes.io/<role>` label it always gets. inoculant
+            applies these because kubelet is forbidden from setting
+            `node-role.kubernetes.io/*` on itself.
+
+            An entry here for the role label overrides it.
           '';
         };
 
