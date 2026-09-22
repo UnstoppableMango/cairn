@@ -26,9 +26,11 @@
     machines.node1 =
       { pkgs, ... }:
       let
-        # Throwaway CA, generated at eval time so the pki service's
-        # interactive CA prompt (clan vars generate) never fires in the
-        # test. Set here (clan.machines.node1) rather than on the nixosTest's
+        # Throwaway root and intermediate, generated at eval time so the pki
+        # service's interactive CA prompt (clan vars generate) never fires in
+        # the test. The intermediate is the cluster CA and the root is its
+        # chain, the shape of a cluster CA issued by an organisation root.
+        # Set here (clan.machines.node1) rather than on the nixosTest's
         # `nodes.node1` because vars/generators are computed from
         # clanInternals.machines (fed by clan.machines), a separate
         # evaluation from the nixosTest node config.
@@ -39,8 +41,13 @@
             }
             ''
               mkdir -p "$out"
-              echo '{"CN":"single-node-cluster test CA","key":{"algo":"ecdsa","size":256}}' > csr.json
-              cfssl gencert -initca csr.json | cfssljson -bare ca
+              echo '{"CN":"single-node-cluster test root","key":{"algo":"ecdsa","size":256}}' > root.json
+              cfssl gencert -initca root.json | cfssljson -bare root
+              echo '{"CN":"single-node-cluster test CA","key":{"algo":"ecdsa","size":256}}' > ca.json
+              cfssl genkey -initca ca.json | cfssljson -bare ca
+              echo '{"signing":{"default":{"expiry":"87600h","usages":["cert sign","crl sign"],"ca_constraint":{"is_ca":true,"max_path_len":0,"max_path_len_zero":true}}}}' > config.json
+              cfssl sign -ca root.pem -ca-key root-key.pem -config config.json ca.csr | cfssljson -bare ca
+              mv root.pem "$out/root"
               mv ca.pem "$out/crt"
               mv ca-key.pem "$out/key"
             '';
@@ -48,9 +55,12 @@
       {
         services.kubernetes.roles = [ "node" ];
 
-        cluster.cairn.pki.ca.override = {
-          crt = "${testCa}/crt";
-          key = "${testCa}/key";
+        cluster.cairn.pki.ca = {
+          override = {
+            crt = "${testCa}/crt";
+            key = "${testCa}/key";
+          };
+          chain = [ (builtins.readFile "${testCa}/root") ];
         };
       };
   };
@@ -78,6 +88,8 @@
     {
       services.kubernetes.kubelet.seedDockerImages = [ smokeTestImage ];
 
+      environment.systemPackages = [ pkgs.openssl ];
+
       # The seeded images (coredns, metrics-server, the pause shim and this
       # test's own) land in containerd's store on the VM's writable disk. The
       # NixOS test default is small enough that kubelet's image garbage
@@ -98,6 +110,17 @@
 
     node1.wait_until_succeeds("kubectl get --raw=/healthz")
     node1.wait_until_succeeds("kubectl get nodes | grep -q ' Ready'")
+
+    # The bundle pods trust verifies the apiserver under OpenSSL, which,
+    # unlike Go, rejects a trust bundle that stops at an intermediate.
+    node1.wait_until_succeeds(
+        "kubectl get configmap kube-root-ca.crt -o jsonpath='{.data.ca\\.crt}'"
+        " > /tmp/kube-root-ca.crt"
+    )
+    node1.succeed(
+        "openssl s_client -connect 192.168.1.1:6443 -CAfile /tmp/kube-root-ca.crt"
+        " -verify_return_error </dev/null"
+    )
 
     # No trailing command override: the image's own Cmd already runs sleep by
     # absolute path. Overriding it with a bare "sleep" here would fail to
