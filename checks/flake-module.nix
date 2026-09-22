@@ -55,6 +55,17 @@ let
 
   lowered = lowerSpec exampleSpec;
 
+  # The example sets no cluster-wide reservation, so on its own it cannot tell
+  # a machine falling back to the cluster value from one falling back to `{}`.
+  withClusterReservation = lowerSpec (
+    lib.recursiveUpdate exampleSpec {
+      services.kubelet.systemReserved = {
+        cpu = "500m";
+        memory = "1Gi";
+      };
+    }
+  );
+
   # Same stand-in for a downstream consumer flake as ./consumer-services.nix:
   # clan reads `config.self.inputs` to resolve `module.input = "cairn"`.
   consumer = clan-core.lib.clan {
@@ -179,6 +190,24 @@ let
           memory = "4Gi";
         }
         && (settingsOf "kubelet" "node" "worker2").systemReserved == { };
+    }
+    {
+      msg = "a machine without its own reservation takes the cluster's";
+      cond =
+        let
+          reservedOf =
+            m:
+            withClusterReservation.inventory.instances.kubelet.roles.node.machines.${m}.settings.systemReserved;
+        in
+        reservedOf "worker1" == {
+          cpu = "2";
+          memory = "4Gi";
+        }
+        &&
+          reservedOf "worker2" == {
+            cpu = "500m";
+            memory = "1Gi";
+          };
     }
     {
       msg = "reservations reach the rendered kubelet configuration";
