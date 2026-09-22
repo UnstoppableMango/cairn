@@ -119,6 +119,7 @@ in
       };
 
       controllerManager = {
+        rootCaFile = pki.ca.bundle;
         serviceAccountKeyFile = pki.certs."sa".key;
         kubeconfig = {
           certFile = pki.certs."controller-manager-cert".cert;

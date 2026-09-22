@@ -213,6 +213,17 @@ let
             description = "Validity period for generated certificates, in days.";
           };
 
+          caChain = mkOption {
+            type = types.listOf types.str;
+            default = [ ];
+            description = ''
+              PEM certificates of the CA's issuers, up to a self-signed root,
+              when the cluster CA is an intermediate. Pods receive the CA plus
+              this chain as `kube-root-ca.crt`; OpenSSL-based clients need the
+              root there. Never used to authenticate clients.
+            '';
+          };
+
           ca.override = mkOption {
             type = overrideType "CA";
             default = null;

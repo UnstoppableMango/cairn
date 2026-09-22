@@ -163,7 +163,7 @@ let
         (instance (svc.pki.enable && svc.pki.machines != [ ]) "${prefix}pki" {
           module = mkModule "pki";
           roles.node = mkRole svc.pki "pki" svc.pki.machines (_: {
-            inherit (svc.pki) generatorPrefix certValidityDays;
+            inherit (svc.pki) generatorPrefix certValidityDays caChain;
           });
         })
 

@@ -19,6 +19,7 @@
           imports = [ ./node.nix ];
           cluster.cairn.pki = {
             inherit (settings) generatorPrefix certValidityDays;
+            ca.chain = settings.caChain;
           };
         };
       };

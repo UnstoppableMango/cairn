@@ -10,6 +10,7 @@ let
 
   expiry = "${toString (cfg.pki.certValidityDays * 24)}h";
   prefix = cfg.pki.generatorPrefix;
+  caFile = topConfig.clan.core.vars.generators."${prefix}-ca".files."crt";
 
   signingConfigFile = pkgs.writeText "cfssl-signing-config.json" (
     builtins.toJSON {
@@ -225,6 +226,21 @@ in
     };
 
     ca.override = mkOverrideOption "CA";
+
+    ca.chain = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ ];
+      description = "PEM certificates completing the CA's chain to a self-signed root. See the pki `caChain` setting.";
+    };
+
+    ca.bundle = lib.mkOption {
+      type = lib.types.str;
+      readOnly = true;
+      description = ''
+        Resolved path to the CA followed by `ca.chain`, for handing out as a
+        trust bundle. Equal to `ca.cert` when `ca.chain` is empty.
+      '';
+    };
   };
 
   config = {
@@ -235,6 +251,15 @@ in
       name: cert: lib.nameValuePair "${prefix}-${name}" (mkCertGenerator name cert)
     ) cfg.pki.certs;
 
-    cluster.cairn.pki.ca.cert = topConfig.clan.core.vars.generators."${prefix}-ca".files."crt".path;
+    cluster.cairn.pki.ca = {
+      cert = caFile.path;
+      bundle =
+        if cfg.pki.ca.chain == [ ] then
+          caFile.path
+        else
+          "${pkgs.writeText "${prefix}-ca-bundle.crt" (
+            lib.concatMapStrings (pem: lib.removeSuffix "\n" pem + "\n") ([ caFile.value ] ++ cfg.pki.ca.chain)
+          )}";
+    };
   };
 }
