@@ -55,6 +55,17 @@ let
 
   lowered = lowerSpec exampleSpec;
 
+  # The example sets no cluster-wide reservation, so on its own it cannot tell
+  # a machine falling back to the cluster value from one falling back to `{}`.
+  withClusterReservation = lowerSpec (
+    lib.recursiveUpdate exampleSpec {
+      services.kubelet.systemReserved = {
+        cpu = "500m";
+        memory = "1Gi";
+      };
+    }
+  );
+
   # Same stand-in for a downstream consumer flake as ./consumer-services.nix:
   # clan reads `config.self.inputs` to resolve `module.input = "cairn"`.
   consumer = clan-core.lib.clan {
@@ -167,6 +178,59 @@ let
       cond =
         consumer.config.nixosConfigurations.worker1.config.services.kubernetes.kubelet.extraConfig.maxPods
         == 250;
+    }
+    {
+      # Same precedence as maxPods: the machine's own figure wins, everything
+      # else takes the cluster's, which is empty until the cluster says
+      # otherwise.
+      msg = "a per-machine reservation overrides the cluster default";
+      cond =
+        (settingsOf "kubelet" "node" "worker1").systemReserved == {
+          cpu = "2";
+          memory = "4Gi";
+        }
+        && (settingsOf "kubelet" "node" "worker2").systemReserved == { };
+    }
+    {
+      msg = "a machine without its own reservation takes the cluster's";
+      cond =
+        let
+          reservedOf =
+            m:
+            withClusterReservation.inventory.instances.kubelet.roles.node.machines.${m}.settings.systemReserved;
+        in
+        reservedOf "worker1" == {
+          cpu = "2";
+          memory = "4Gi";
+        }
+        &&
+          reservedOf "worker2" == {
+            cpu = "500m";
+            memory = "1Gi";
+          };
+    }
+    {
+      msg = "reservations reach the rendered kubelet configuration";
+      cond =
+        let
+          cfg = consumer.config.nixosConfigurations.worker1.config.services.kubernetes.kubelet.extraConfig;
+        in
+        cfg.systemReserved == {
+          cpu = "2";
+          memory = "4Gi";
+        }
+        && cfg.evictionHard == { "memory.available" = "1Gi"; };
+    }
+    {
+      # An unset reservation is left out of the KubeletConfiguration rather
+      # than written as `{}`, so a consumer setting one directly on
+      # services.kubernetes.kubelet.extraConfig does not collide.
+      msg = "an unset reservation is absent from the rendered configuration";
+      cond =
+        let
+          cfg = consumer.config.nixosConfigurations.worker2.config.services.kubernetes.kubelet.extraConfig;
+        in
+        !(cfg ? systemReserved) && !(cfg ? kubeReserved) && !(cfg ? evictionHard);
     }
     {
       msg = "per-machine keepalived priorities survive the lowering";

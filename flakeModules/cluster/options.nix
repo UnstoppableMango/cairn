@@ -152,6 +152,53 @@ let
           '';
         };
 
+        systemReserved = mkOption {
+          type = types.nullOr (types.attrsOf types.str);
+          default = null;
+          example = {
+            cpu = "2";
+            memory = "2Gi";
+          };
+          description = ''
+            Resources this machine withholds from pods for the kernel, the
+            container runtime, and anything it runs outside Kubernetes,
+            overriding the cluster's `services.kubelet.systemReserved`.
+            `null` takes the cluster value.
+
+            Set it per machine where one node carries something the others
+            do not, a storage daemon or a build agent. A cluster-wide figure
+            sized for that machine strands the same memory on every other
+            one.
+          '';
+        };
+
+        kubeReserved = mkOption {
+          type = types.nullOr (types.attrsOf types.str);
+          default = null;
+          example = {
+            cpu = "1";
+            memory = "1Gi";
+          };
+          description = ''
+            Resources this machine withholds for the kubelet and container
+            runtime, overriding the cluster's `services.kubelet.kubeReserved`.
+            `null` takes the cluster value.
+          '';
+        };
+
+        evictionHard = mkOption {
+          type = types.nullOr (types.attrsOf types.str);
+          default = null;
+          example = {
+            "memory.available" = "1Gi";
+          };
+          description = ''
+            Hard eviction thresholds for this machine, overriding the
+            cluster's `services.kubelet.evictionHard`. `null` takes the
+            cluster value.
+          '';
+        };
+
         schedulable = mkOption {
           type = types.bool;
           default = false;
@@ -336,6 +383,51 @@ let
             description = ''
               Pods a kubelet will admit, for machines that do not set
               `machines.<name>.maxPods`. kubelet's own default is 110.
+            '';
+          };
+
+          systemReserved = mkOption {
+            type = types.attrsOf types.str;
+            default = { };
+            example = {
+              cpu = "1";
+              memory = "1Gi";
+            };
+            description = ''
+              Resources withheld from pods for the kernel, the container
+              runtime and the rest of the host, for machines that do not set
+              `machines.<name>.systemReserved`.
+
+              Allocatable is capacity minus this, `kubeReserved` and the
+              `evictionHard` memory threshold, and the scheduler places
+              against allocatable. Empty by default, which is kubelet's own
+              behaviour and hands the scheduler nearly the whole machine.
+            '';
+          };
+
+          kubeReserved = mkOption {
+            type = types.attrsOf types.str;
+            default = { };
+            example = {
+              cpu = "1";
+              memory = "1Gi";
+            };
+            description = ''
+              Resources withheld for the kubelet and container runtime, for
+              machines that do not set `machines.<name>.kubeReserved`.
+            '';
+          };
+
+          evictionHard = mkOption {
+            type = types.attrsOf types.str;
+            default = { };
+            example = {
+              "memory.available" = "1Gi";
+            };
+            description = ''
+              Hard eviction thresholds, for machines that do not set
+              `machines.<name>.evictionHard`. The memory threshold also
+              subtracts from allocatable.
             '';
           };
         };

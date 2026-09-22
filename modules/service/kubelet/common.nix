@@ -53,6 +53,66 @@ in
         `--node-cidr-mask-size` before going past it.
       '';
     };
+
+    systemReserved = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      example = {
+        cpu = "2";
+        memory = "2Gi";
+      };
+      description = ''
+        Resources withheld from pods for everything on the node that is not
+        Kubernetes: the kernel, the container runtime, and whatever else the
+        machine runs alongside its workloads.
+
+        Node allocatable is capacity minus `systemReserved`, `kubeReserved`
+        and the `evictionHard` memory threshold, and the scheduler places
+        against allocatable rather than capacity. Reserving nothing lets the
+        scheduler commit the whole machine and leaves host processes to
+        contend with pods under the kernel OOM killer, which chooses by
+        badness score rather than by what matters. Reserving too much strands
+        capacity no pod can ever be given.
+
+        Empty by default, which is kubelet's own behaviour.
+      '';
+    };
+
+    kubeReserved = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      example = {
+        cpu = "1";
+        memory = "1Gi";
+      };
+      description = ''
+        Resources withheld for the Kubernetes daemons themselves, the kubelet
+        and the container runtime, as distinct from the rest of the host.
+
+        Separate from `systemReserved` because the two are reported
+        separately, so a node whose kubelet is being starved reads
+        differently from one whose host services are.
+      '';
+    };
+
+    evictionHard = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      example = {
+        "memory.available" = "1Gi";
+      };
+      description = ''
+        Thresholds at which the kubelet evicts pods with no grace period.
+
+        The memory threshold also subtracts from allocatable, so it reserves
+        as much as it triggers: it holds back a margin the scheduler cannot
+        promise away, which is what gives eviction a chance to run before the
+        kernel OOM killer does.
+
+        Empty by default, which leaves kubelet's own thresholds in place
+        rather than disabling eviction.
+      '';
+    };
   };
 
   config = {
@@ -86,8 +146,18 @@ in
       extraOpts = "--root-dir=${cfg.rootDir}";
       # KubeletConfiguration rather than the deprecated --max-pods flag.
       # extraConfig is attrsOf json, so this merges per-key with whatever
-      # else a consumer puts there (systemReserved, evictionHard, ...).
-      extraConfig.maxPods = cfg.maxPods;
+      # else a consumer puts there.
+      #
+      # The reservation keys are omitted when empty rather than written as
+      # `{}`. An empty attrset means the same thing to kubelet, but defining
+      # the key here would collide with a consumer that still sets it
+      # directly on services.kubernetes.kubelet.extraConfig.
+      extraConfig = {
+        maxPods = cfg.maxPods;
+      }
+      // lib.optionalAttrs (cfg.systemReserved != { }) { inherit (cfg) systemReserved; }
+      // lib.optionalAttrs (cfg.kubeReserved != { }) { inherit (cfg) kubeReserved; }
+      // lib.optionalAttrs (cfg.evictionHard != { }) { inherit (cfg) evictionHard; };
       clientCaFile = pki.ca.cert;
       tlsCertFile = pki.certs."kubelet-cert".cert;
       tlsKeyFile = pki.certs."kubelet-cert".key;

@@ -45,6 +45,46 @@ in
             '';
           };
 
+          systemReserved = lib.mkOption {
+            type = lib.types.attrsOf lib.types.str;
+            default = { };
+            example = {
+              cpu = "2";
+              memory = "2Gi";
+            };
+            description = ''
+              Resources withheld from pods for the kernel, the container
+              runtime, and anything else this machine runs. Subtracted from
+              capacity to give allocatable, which is what the scheduler
+              places against.
+            '';
+          };
+
+          kubeReserved = lib.mkOption {
+            type = lib.types.attrsOf lib.types.str;
+            default = { };
+            example = {
+              cpu = "1";
+              memory = "1Gi";
+            };
+            description = ''
+              Resources withheld for the kubelet and the container runtime
+              themselves.
+            '';
+          };
+
+          evictionHard = lib.mkOption {
+            type = lib.types.attrsOf lib.types.str;
+            default = { };
+            example = {
+              "memory.available" = "1Gi";
+            };
+            description = ''
+              Thresholds at which this kubelet evicts pods with no grace
+              period. The memory threshold also subtracts from allocatable.
+            '';
+          };
+
           inherit (cairnLib.options) vip clusterName kubernetesVersion;
         };
       };
@@ -61,7 +101,13 @@ in
             inherit (settings) vip clusterName;
             kubelet = {
               advertiseAddress = settings.ip;
-              inherit (settings) schedulable maxPods;
+              inherit (settings)
+                schedulable
+                maxPods
+                systemReserved
+                kubeReserved
+                evictionHard
+                ;
             };
             kubernetesVersion = settings.kubernetesVersion;
           };
