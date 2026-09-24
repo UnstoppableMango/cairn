@@ -6,6 +6,7 @@ A Kubernetes distribution built on Nix and clan.
 [![Last commit](https://img.shields.io/github/last-commit/UnstoppableMango/cairn)](https://github.com/UnstoppableMango/cairn/commits/main)
 [![License](https://img.shields.io/github/license/UnstoppableMango/cairn)](LICENSE)
 [![Built with Nix](https://img.shields.io/badge/built%20with-Nix-5277C3?logo=nixos&logoColor=white)](https://nixos.org)
+[![Hercules CI](https://hercules-ci.com/api/v1/site/github/account/UnstoppableMango/project/cairn/badge)](https://hercules-ci.com/github/UnstoppableMango/cairn)
 
 ## What is this?
 
