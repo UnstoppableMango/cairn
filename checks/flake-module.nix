@@ -233,6 +233,19 @@ let
         !(cfg ? systemReserved) && !(cfg ? kubeReserved) && !(cfg ? evictionHard);
     }
     {
+      # Containers inherit containerd's soft limit, so this is the limit every
+      # pod starts with, schedulable node or not.
+      msg = "containerd raises the nofile limit containers inherit";
+      cond =
+        let
+          limitOf =
+            m:
+            consumer.config.nixosConfigurations.${m}.config.systemd.services.containerd.serviceConfig.LimitNOFILE
+              or null;
+        in
+        limitOf "worker1" == 1048576 && limitOf "cp1" == 1048576;
+    }
+    {
       msg = "per-machine keepalived priorities survive the lowering";
       cond =
         (settingsOf "loadbalancer" "control-plane" "cp1").keepalivedPriority == 150
