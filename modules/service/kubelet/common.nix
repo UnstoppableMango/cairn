@@ -113,6 +113,29 @@ in
         rather than disabling eviction.
       '';
     };
+
+    containerdRuntimes = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.attrsOf lib.types.anything);
+      default = { };
+      example = {
+        runc-cgroup-writable = {
+          runtime_type = "io.containerd.runc.v2";
+          cgroup_writable = true;
+          options.SystemdCgroup = true;
+        };
+      };
+      description = ''
+        containerd CRI runtime handlers added beside nixpkgs' default `runc`,
+        each one a handler a Kubernetes RuntimeClass can name.
+
+        Each value is written as-is under
+        `plugins."io.containerd.grpc.v1.cri".containerd.runtimes.<name>`,
+        the `version = 2` layout nixpkgs' kubernetes module writes. A handler
+        inherits nothing from `runc`: set `runtime_type`, and
+        `options.SystemdCgroup = true` to match the cgroup driver nixpkgs
+        gives the kubelet.
+      '';
+    };
   };
 
   config = {
