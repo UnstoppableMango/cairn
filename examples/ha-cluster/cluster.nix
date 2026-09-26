@@ -80,6 +80,15 @@
       virtualRouterId = 51;
     };
 
+    # Optional: extra containerd handlers for Kubernetes RuntimeClasses. This
+    # one mounts /sys/fs/cgroup writable, for pods that run their own
+    # container runtime (dind, podman, buildkitd) under hostUsers: false.
+    kubelet.containerdRuntimes.runc-cgroup-writable = {
+      runtime_type = "io.containerd.runc.v2";
+      cgroup_writable = true;
+      options.SystemdCgroup = true;
+    };
+
     # Optional: the Metrics API, for `kubectl top` and resource-metrics HPAs.
     # The image comes from the pinned minor's kubepkgs build.
     metrics-server.enable = true;

@@ -366,7 +366,9 @@ let
         cluster.cairn.metricsServer = metricsServerConfig;
       }
       ++ optional (elem mname kubeletMachines) {
-        cluster.cairn.kubelet.rootDir = svc.kubelet.rootDir;
+        cluster.cairn.kubelet = {
+          inherit (svc.kubelet) rootDir containerdRuntimes;
+        };
       }
     );
   };

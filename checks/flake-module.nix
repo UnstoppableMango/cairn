@@ -246,6 +246,23 @@ let
         limitOf "worker1" == 1048576 && limitOf "cp1" == 1048576;
     }
     {
+      # Added beside nixpkgs' default runc handler rather than replacing it,
+      # on every kubelet, schedulable node or not.
+      msg = "extra containerd runtime handlers reach every kubelet";
+      cond =
+        let
+          runtimesOf =
+            m:
+            consumer.config.nixosConfigurations.${m}.config.virtualisation.containerd.settings.plugins."io.containerd.grpc.v1.cri".containerd.runtimes
+              or { };
+          ok =
+            m:
+            (runtimesOf m).runc-cgroup-writable.cgroup_writable or false
+            && (runtimesOf m).runc.runtime_type or null == "io.containerd.runc.v2";
+        in
+        ok "worker1" && ok "cp1";
+    }
+    {
       msg = "per-machine keepalived priorities survive the lowering";
       cond =
         (settingsOf "loadbalancer" "control-plane" "cp1").keepalivedPriority == 150
