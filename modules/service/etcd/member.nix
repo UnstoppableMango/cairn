@@ -15,6 +15,107 @@ let
   ];
 
   etcdPeerEndpoints = map (n: "${n.name}=https://${n.ip}:2380") cfg.nodes;
+
+  selfPeerUrl = "https://${cfg.advertiseAddress}:2380";
+
+  # Every other member's client URL. The machine's own is useless for joining:
+  # the point is to reach a member that is already in the cluster, and this one
+  # is not serving yet when the join runs.
+  joinEndpoints = lib.concatMapStringsSep "," (n: "https://${n.ip}:2379") (
+    lib.filter (n: n.ip != cfg.advertiseAddress) cfg.nodes
+  );
+
+  # The units carry the credentials rather than the scripts, so the scripts
+  # close over no clan vars. A var's path only resolves once `clan vars
+  # generate` has run, and a script holding one cannot be built by an
+  # evaluation-only check (see checks/etcd-autojoin.nix).
+  #
+  # `etcd-client-cert` is owned by `kubernetes` while the etcd unit runs as
+  # `etcd`, so whatever reads the key has to be root.
+  etcdctlCredentials = {
+    ETCDCTL_API = "3";
+    ETCDCTL_CACERT = pki.ca.cert;
+    ETCDCTL_CERT = pki.certs."etcd-client-cert".cert;
+    ETCDCTL_KEY = pki.certs."etcd-client-cert".key;
+  };
+
+  # Registers this machine with a running cluster before its etcd starts.
+  #
+  # Joining as a learner rather than a voting member is what makes this safe to
+  # run unattended: a voting member counts toward quorum from the moment it is
+  # added, so adding one to a healthy three-member cluster leaves four members
+  # needing three votes and no failures tolerated until this machine finishes
+  # booting. A learner never counts toward quorum.
+  autoJoinScript = pkgs.writeShellApplication {
+    name = "etcd-autojoin";
+    runtimeInputs = cfg.tools;
+    text = ''
+      # An initialised data directory means this machine is already a member and
+      # etcd rejoins on its own. Returning here without contacting anyone is
+      # deliberate: a whole cluster booting at once has no reachable peer yet,
+      # and blocking on one would keep every member down.
+      if [ -d ${lib.escapeShellArg config.services.etcd.dataDir}/member ]; then
+        echo "etcd data directory is initialised; nothing to register"
+        exit 0
+      fi
+
+      IFS=',' read -r -a candidates <<< ${lib.escapeShellArg joinEndpoints}
+
+      endpoint=""
+      for candidate in "''${candidates[@]}"; do
+        [ -n "$candidate" ] || continue
+        if etcdctl --endpoints="$candidate" endpoint health >/dev/null 2>&1; then
+          endpoint="$candidate"
+          break
+        fi
+      done
+
+      if [ -z "$endpoint" ]; then
+        echo "no existing etcd member answered; refusing to join a cluster that is not there" >&2
+        exit 1
+      fi
+
+      if etcdctl --endpoints="$endpoint" member list \
+        | grep -qF ${lib.escapeShellArg selfPeerUrl}; then
+        echo "this machine is already a member but its data directory is empty." >&2
+        echo "etcd cannot rejoin under an existing member ID with no data. Recovery is" >&2
+        echo "'etcdctl member remove' followed by a fresh join, and removing a member is" >&2
+        echo "destructive, so it is left to an operator." >&2
+        exit 1
+      fi
+
+      echo "registering ${config.networking.hostName} as a learner via $endpoint"
+      etcdctl --endpoints="$endpoint" member add ${lib.escapeShellArg config.networking.hostName} \
+        --peer-urls=${lib.escapeShellArg selfPeerUrl} --learner
+    '';
+  };
+
+  # Promotes the learner once its log has caught up. etcd rejects the promotion
+  # until then, so failing and letting systemd retry is the whole mechanism.
+  promoteScript = pkgs.writeShellApplication {
+    name = "etcd-promote";
+    runtimeInputs = cfg.tools;
+    text = ''
+      export ETCDCTL_ENDPOINTS=https://127.0.0.1:2379
+
+      line=$(etcdctl member list | grep -F ${lib.escapeShellArg selfPeerUrl} || true)
+
+      if [ -z "$line" ]; then
+        echo "not a member yet; retrying" >&2
+        exit 1
+      fi
+
+      if [ "$(printf '%s' "$line" | awk -F',' '{gsub(/ /, "", $NF); print $NF}')" != "true" ]; then
+        echo "already a voting member"
+        exit 0
+      fi
+
+      echo "promoting learner $(printf '%s' "$line" | cut -d, -f1)"
+      etcdctl member promote "$(printf '%s' "$line" | cut -d, -f1)"
+    '';
+  };
+
+  autoJoinEnabled = cfg.autoJoin && cfg.initialClusterState == "existing";
 in
 {
   imports = [
@@ -51,6 +152,25 @@ in
       ];
       default = "new";
       description = "etcd initial cluster state; set to \"existing\" when replacing a member or restoring into a live cluster.";
+    };
+
+    autoJoin = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Register this machine with the running cluster before etcd starts,
+        instead of requiring `etcdctl member add` by hand. Only has an effect
+        alongside `initialClusterState = "existing"`, which is the case that
+        needs it: etcd refuses to start in that state until the member exists.
+
+        The machine joins as a raft learner and is promoted to a voting member
+        once its log has caught up, so a join never lowers the quorum the
+        cluster can survive, however long this machine takes to come up.
+
+        A machine whose data directory is empty while it is still listed as a
+        member is left alone and reported, since recovering that needs
+        `etcdctl member remove`, which destroys the member's data.
+      '';
     };
   };
 
@@ -92,6 +212,33 @@ in
       peerCertFile = pki.certs."etcd-peer-cert".cert;
       peerKeyFile = pki.certs."etcd-peer-cert".key;
       peerTrustedCaFile = pki.ca.cert;
+    };
+
+    # The `+` prefix runs the hook as root rather than the unit's `etcd` user,
+    # which cannot read the `kubernetes`-owned client key. Failing here keeps
+    # etcd from starting, which is what should happen when the registration
+    # this machine needs did not land.
+    systemd.services.etcd = lib.mkIf autoJoinEnabled {
+      environment = etcdctlCredentials;
+      serviceConfig.ExecStartPre = [ "+${lib.getExe autoJoinScript}" ];
+    };
+
+    systemd.services.etcd-promote = lib.mkIf autoJoinEnabled {
+      description = "Promote this etcd learner to a voting member";
+      after = [ "etcd.service" ];
+      requires = [ "etcd.service" ];
+      wantedBy = [ "multi-user.target" ];
+      environment = etcdctlCredentials;
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = lib.getExe promoteScript;
+        # etcd rejects the promotion until the learner has caught up, so the
+        # retry is the mechanism rather than a failure path. A separate unit
+        # runs as root already and needs no `+`.
+        Restart = "on-failure";
+        RestartSec = "15s";
+      };
+      unitConfig.StartLimitIntervalSec = 0;
     };
 
     networking.firewall.allowedTCPPorts = [
