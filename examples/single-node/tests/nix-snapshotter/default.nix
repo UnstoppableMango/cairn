@@ -21,10 +21,23 @@ base
   nodes.node1 =
     { lib, pkgs, ... }:
     let
+      # nixpkgs' `nix-snapshotter.buildImage` passthru calls upstream's
+      # package.nix without the `globset` argument it requires, so it fails
+      # to evaluate. Call that package.nix here, with globset pinned where
+      # upstream's own flake.lock pins it.
+      nix-snapshotter = pkgs.callPackage "${pkgs.nix-snapshotter.src}/package.nix" {
+        globset.lib = import (pkgs.fetchFromGitHub {
+          owner = "pdtpartners";
+          repo = "globset";
+          rev = "eb9d9e64b7ab0a64c34ba4a5a990b66506401c35";
+          hash = "sha256-nBkQx23jgpGPk3aU2KcqJCoYvzjsKEjWBePmc2z8N3k=";
+        }) { inherit lib; };
+      };
+
       # Resolved by nix: the image is a store path whose layers name store
       # paths, which nix-snapshotter bind-mounts from the node's store rather
       # than unpacking.
-      image = pkgs.nix-snapshotter.buildImage {
+      image = nix-snapshotter.buildImage {
         name = "store-probe";
         resolvedByNix = true;
         copyToRoot = pkgs.buildEnv {
