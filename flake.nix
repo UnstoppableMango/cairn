@@ -96,6 +96,20 @@
 
         perSystem =
           { pkgs, ... }:
+          let
+            # The services both VM tests boot.
+            cairnModules = lib.getAttrs [
+              "@UnstoppableMango/pki"
+              "@UnstoppableMango/etcd"
+              "@UnstoppableMango/apiserver"
+              "@UnstoppableMango/kubelet"
+              "@UnstoppableMango/network"
+              "@UnstoppableMango/kubeconfig"
+              "@UnstoppableMango/inoculant"
+              "@UnstoppableMango/coredns"
+              "@UnstoppableMango/metrics-server"
+            ] config.flake.clan.modules;
+          in
           {
             devShells.default = pkgs.mkShellNoCC {
               packages = with pkgs; [
@@ -105,17 +119,13 @@
             };
 
             clan.nixosTests.single-node-cluster = import ./examples/single-node/tests/vm/default.nix {
-              cairnModules = lib.getAttrs [
-                "@UnstoppableMango/pki"
-                "@UnstoppableMango/etcd"
-                "@UnstoppableMango/apiserver"
-                "@UnstoppableMango/kubelet"
-                "@UnstoppableMango/network"
-                "@UnstoppableMango/kubeconfig"
-                "@UnstoppableMango/inoculant"
-                "@UnstoppableMango/coredns"
-                "@UnstoppableMango/metrics-server"
-              ] config.flake.clan.modules;
+              inherit cairnModules;
+            };
+
+            # Pods running straight off the node's nix store and building
+            # through its nix-daemon; see the test for what it settles.
+            clan.nixosTests.nix-snapshotter = import ./examples/single-node/tests/nix-snapshotter/default.nix {
+              inherit cairnModules;
             };
 
             checks.consumer-services = import ./checks/consumer-services.nix {
