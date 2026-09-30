@@ -56,6 +56,12 @@
         nix2container.follows = "a2b/mangopkgs/nix2container";
       };
     };
+
+    # nix-snapshotter's package.nix takes it, and nixpkgs does not pass it.
+    globset = {
+      url = "github:pdtpartners/globset";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -126,6 +132,7 @@
             # through its nix-daemon; see the test for what it settles.
             clan.nixosTests.nix-snapshotter = import ./examples/single-node/tests/nix-snapshotter/default.nix {
               inherit cairnModules;
+              inherit (inputs) globset;
             };
 
             checks.consumer-services = import ./checks/consumer-services.nix {

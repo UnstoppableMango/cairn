@@ -1,5 +1,6 @@
 {
   cairnModules,
+  globset,
 }:
 # Whether pods can run straight off the node's nix store, through
 # nix-snapshotter, and build through the node's nix-daemon, on the same
@@ -23,15 +24,9 @@ base
     let
       # nixpkgs' `nix-snapshotter.buildImage` passthru calls upstream's
       # package.nix without the `globset` argument it requires, so it fails
-      # to evaluate. Call that package.nix here, with globset pinned where
-      # upstream's own flake.lock pins it.
+      # to evaluate. Call that package.nix here with it.
       nix-snapshotter = pkgs.callPackage "${pkgs.nix-snapshotter.src}/package.nix" {
-        globset.lib = import (pkgs.fetchFromGitHub {
-          owner = "pdtpartners";
-          repo = "globset";
-          rev = "eb9d9e64b7ab0a64c34ba4a5a990b66506401c35";
-          hash = "sha256-nBkQx23jgpGPk3aU2KcqJCoYvzjsKEjWBePmc2z8N3k=";
-        }) { inherit lib; };
+        inherit globset;
       };
 
       # Resolved by nix: the image is a store path whose layers name store
