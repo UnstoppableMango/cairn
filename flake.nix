@@ -74,7 +74,7 @@
         systems = import inputs.systems;
 
         imports = with inputs; [
-          systems.flakeModule
+          systems.flakeModule or { }
           treefmt-nix.flakeModule
           flake-parts.flakeModules.modules
           flake-parts.flakeModules.flakeModules
