@@ -174,6 +174,13 @@ base
         proxy_plugins.nix = {
           type = "snapshot";
           address = socket;
+          # nix-snapshotter does not advertise remap-ids, so for a
+          # user-namespaced pod containerd falls back to chowning the whole
+          # snapshot, which fails on the read-only store bind mounts. Declared
+          # here, containerd passes the id mapping instead; store paths that
+          # stay unmapped read as the overflow uid, which a read-only store
+          # does not mind.
+          capabilities = [ "remap-ids" ];
         };
       };
 
