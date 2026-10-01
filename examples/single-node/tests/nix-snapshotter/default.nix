@@ -207,7 +207,9 @@ base
       # give them room. The image is sparse.
       virtualisation.diskSize = lib.mkForce 20480;
       boot.growPartition = true;
-      fileSystems."/".autoResize = true;
+      # Not `fileSystems`: the VM module replaces that with its own
+      # virtualisation.fileSystems through mkVMOverride.
+      virtualisation.fileSystems."/".autoResize = true;
     };
 
   testScript = ''
