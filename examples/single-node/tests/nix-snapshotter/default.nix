@@ -195,6 +195,12 @@ base
       # The derivation's builder is the sandbox's /bin/sh, so the build needs
       # nothing fetched: the VM has no network to fetch from.
       virtualisation.additionalPaths = [ pkgs.busybox-sandbox-shell ];
+
+      # A user-namespaced pod gets its volumes idmapped, and the default VM
+      # store is the host's, shared over virtiofs, which refuses
+      # MOUNT_ATTR_IDMAP. A disk image puts the store on ext4, as on a real
+      # node.
+      virtualisation.useBootLoader = true;
     };
 
   testScript = ''
@@ -221,9 +227,16 @@ base
     # The same image in a user-namespaced pod, with the node store and the
     # daemon socket mounted.
     node1.wait_until_succeeds("kubectl apply -f /etc/nix-snapshotter-test/userns.json")
-    node1.wait_until_succeeds(
-        "kubectl get pod userns -o jsonpath='{.status.phase}' | grep -q Running"
-    )
+    try:
+        node1.wait_until_succeeds(
+            "kubectl get pod userns -o jsonpath='{.status.phase}' | grep -q Running",
+            timeout=300,
+        )
+    except Exception:
+        # Why it did not start, near the end of the log rather than buried in
+        # the kubelet's.
+        print(node1.execute("kubectl describe pod userns")[1])
+        raise
     uid_map = node1.succeed("kubectl exec userns -- cat /proc/self/uid_map")
     assert not uid_map.split()[:2] == ["0", "0"], f"not user-namespaced: {uid_map}"
 
