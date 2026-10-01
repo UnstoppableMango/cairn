@@ -201,9 +201,13 @@ base
       # MOUNT_ATTR_IDMAP. A disk image puts the store on ext4, as on a real
       # node.
       virtualisation.useBootLoader = true;
-      # The disk image now holds the store closure as well as containerd's
-      # images, which outgrows the base test's 8GiB. The image is sparse.
+      # The disk image's filesystem is built just big enough for the store
+      # closure, with nothing to spare for containerd's images or etcd. A
+      # larger virtual disk, and the partition and ext4 grown into it at boot,
+      # give them room. The image is sparse.
       virtualisation.diskSize = lib.mkForce 20480;
+      boot.growPartition = true;
+      fileSystems."/".autoResize = true;
     };
 
   testScript = ''
