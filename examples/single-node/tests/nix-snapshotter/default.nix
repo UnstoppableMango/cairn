@@ -207,39 +207,58 @@ base
     };
 
   testScript = ''
+    # Each wait gets 300s rather than the 900s default, and a failure prints
+    # what the cluster was doing, so a broken run explains itself near the end
+    # of the log instead of in a grep of the kubelet journal.
+    TIMEOUT = 300
+    UNITS = ["etcd", "kube-apiserver", "kubelet", "containerd", "nix-snapshotter"]
+
+
+    def diagnose(pod=None):
+        for unit in UNITS:
+            print(f"--- journal: {unit}")
+            print(node1.execute(f"journalctl --no-pager -n 25 -u {unit}")[1])
+        print("--- pods")
+        print(node1.execute("kubectl get pods -A -o wide")[1])
+        if pod:
+            print(f"--- pod {pod}")
+            print(node1.execute(f"kubectl describe pod {pod}")[1])
+
+
+    def step(action, pod=None):
+        try:
+            return action()
+        except Exception:
+            diagnose(pod)
+            raise
+
+
+    def wait(command, pod=None):
+        return step(lambda: node1.wait_until_succeeds(command, timeout=TIMEOUT), pod)
+
+
     start_all()
 
-    node1.wait_for_unit("nix-snapshotter.service")
-    node1.wait_for_unit("kubelet.service")
-    node1.wait_until_succeeds("kubectl get nodes | grep -q ' Ready'")
+    step(lambda: node1.wait_for_unit("nix-snapshotter.service", timeout=TIMEOUT))
+    step(lambda: node1.wait_for_unit("kubelet.service", timeout=TIMEOUT))
+    wait("kubectl get nodes | grep -q ' Ready'")
 
     # Registry-style images still run: the seeded coredns image goes through
     # nix-snapshotter's embedded overlay snapshotter.
-    node1.wait_until_succeeds(
+    wait(
         "kubectl -n kube-system get deployment coredns"
         " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
     )
 
-    # A nix:0 image, resolved from the node's store. wait_until_succeeds on
-    # the apply for the same default-ServiceAccount race the other test has.
-    node1.wait_until_succeeds("kubectl apply -f /etc/nix-snapshotter-test/plain.json")
-    node1.wait_until_succeeds(
-        "kubectl get pod plain -o jsonpath='{.status.phase}' | grep -q Running"
-    )
+    # A nix:0 image, resolved from the node's store. Retrying the apply covers
+    # the same default-ServiceAccount race the other test has.
+    wait("kubectl apply -f /etc/nix-snapshotter-test/plain.json")
+    wait("kubectl get pod plain -o jsonpath='{.status.phase}' | grep -q Running", "plain")
 
     # The same image in a user-namespaced pod, with the node store and the
     # daemon socket mounted.
-    node1.wait_until_succeeds("kubectl apply -f /etc/nix-snapshotter-test/userns.json")
-    try:
-        node1.wait_until_succeeds(
-            "kubectl get pod userns -o jsonpath='{.status.phase}' | grep -q Running",
-            timeout=300,
-        )
-    except Exception:
-        # Why it did not start, near the end of the log rather than buried in
-        # the kubelet's.
-        print(node1.execute("kubectl describe pod userns")[1])
-        raise
+    wait("kubectl apply -f /etc/nix-snapshotter-test/userns.json")
+    wait("kubectl get pod userns -o jsonpath='{.status.phase}' | grep -q Running", "userns")
     uid_map = node1.succeed("kubectl exec userns -- cat /proc/self/uid_map")
     assert not uid_map.split()[:2] == ["0", "0"], f"not user-namespaced: {uid_map}"
 
@@ -247,9 +266,12 @@ base
     node1.succeed(
         "kubectl cp /etc/nix-snapshotter-test/sandbox-probe.nix userns:/tmp/probe.nix"
     )
-    out = node1.succeed(
-        "kubectl exec userns -- nix-build --no-out-link /tmp/probe.nix"
-    ).strip()
+    out = step(
+        lambda: node1.succeed(
+            "kubectl exec userns -- nix-build --no-out-link /tmp/probe.nix"
+        ).strip(),
+        "userns",
+    )
     assert out.startswith("/nix/store/"), out
     assert node1.succeed(f"cat {out}").strip() == "sandboxed"
     assert node1.succeed(f"kubectl exec userns -- cat {out}").strip() == "sandboxed"
