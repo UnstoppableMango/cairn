@@ -654,6 +654,7 @@
         "a2b": "a2b",
         "clan-core": "clan-core",
         "flake-parts": "flake-parts",
+        "globset": "globset_3",
         "inoculant": "inoculant",
         "kubepkgs": "kubepkgs",
         "nixpkgs": "nixpkgs_2",
@@ -766,6 +767,26 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "globset_3": {
+      "inputs": {
+        "nixpkgs-lib": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1756146523,
+        "narHash": "sha256-dn8WNgwVQe0xBJ/d4CiRRcEVSgNclG6WSbqFEf6V024=",
+        "owner": "pdtpartners",
+        "repo": "globset",
+        "rev": "62da8904981f01dc7c97f56c3ea4f131a8393411",
+        "type": "github"
+      },
+      "original": {
+        "owner": "pdtpartners",
+        "repo": "globset",
         "type": "github"
       }
     }
