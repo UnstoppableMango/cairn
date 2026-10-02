@@ -281,12 +281,17 @@ base
     node1.succeed(
         "kubectl cp /etc/nix-snapshotter-test/sandbox-probe.nix userns:/tmp/probe.nix"
     )
-    out = step(
-        lambda: node1.succeed(
-            "kubectl exec userns -- nix-build --no-out-link /tmp/probe.nix"
-        ).strip(),
-        "userns",
+    # The driver does not log a failed command's output, so print nix's own.
+    status, output = node1.execute(
+        "kubectl exec userns -- nix-build --no-out-link /tmp/probe.nix 2>&1"
     )
+    print(output)
+    if status != 0:
+        diagnose("userns")
+        print("--- journal: nix-daemon")
+        print(node1.execute("journalctl --no-pager -n 40 -u nix-daemon")[1])
+        raise Exception(f"nix-build in the userns pod failed (exit {status})")
+    out = output.strip().splitlines()[-1]
     assert out.startswith("/nix/store/"), out
     assert node1.succeed(f"cat {out}").strip() == "sandboxed"
     assert node1.succeed(f"kubectl exec userns -- cat {out}").strip() == "sandboxed"
