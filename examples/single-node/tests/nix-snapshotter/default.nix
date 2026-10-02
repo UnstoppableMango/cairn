@@ -35,14 +35,23 @@ base
       image = nix-snapshotter.buildImage {
         name = "store-probe";
         resolvedByNix = true;
-        copyToRoot = pkgs.buildEnv {
-          name = "store-probe-root";
-          paths = [
-            pkgs.busybox
-            pkgs.nix
-          ];
-          pathsToLink = [ "/bin" ];
-        };
+        copyToRoot = [
+          (pkgs.buildEnv {
+            name = "store-probe-root";
+            paths = [
+              pkgs.busybox
+              pkgs.nix
+            ];
+            pathsToLink = [ "/bin" ];
+          })
+          # Every volume's mount point, present in the image. In a
+          # user-namespaced pod the root filesystem belongs to the host's root,
+          # so runc cannot create a missing one.
+          (pkgs.runCommand "store-probe-mountpoints" { } ''
+            mkdir -p $out/tmp $out/nix/var/nix/daemon-socket \
+              $out/var/run/secrets/kubernetes.io/serviceaccount
+          '')
+        ];
         config = {
           entrypoint = [
             "/bin/sleep"
