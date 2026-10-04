@@ -118,6 +118,16 @@ let
       assert lib.hasPrefix "+" joinPreStart;
       joinPreStart;
 
+    # etcd refuses to start when its initial cluster does not match the
+    # membership a peer reports, and the declarative list names every machine
+    # in the inventory including ones that have not joined. The join writes the
+    # membership `member add` reports instead, and systemd applies an
+    # `EnvironmentFile` after the unit's `Environment=` lines, so that value is
+    # the one etcd sees. Optional, since a machine with data skips the join.
+    initialClusterOverride =
+      assert join1.systemd.services.etcd.serviceConfig.EnvironmentFile == "-/run/etcd-autojoin.env";
+      join1.systemd.services.etcd.serviceConfig.EnvironmentFile;
+
     # ...and the promote unit that turns the learner into a voting member.
     promoteUnit =
       assert join1.systemd.services.etcd-promote.serviceConfig.Restart == "on-failure";
@@ -144,6 +154,14 @@ pkgs.runCommand "cairn-etcd-autojoin" { } ''
 
   grep -q -- '--learner' "$script" \
     || { echo "join does not add the member as a learner" >&2; exit 1; }
+
+  # The membership etcd must claim comes from `member add`, not from the
+  # declarative list, which names machines that have not joined yet.
+  grep -q 'ETCD_INITIAL_CLUSTER=' "$script" \
+    || { echo "join does not record the initial cluster member add reports" >&2; exit 1; }
+
+  grep -q '/run/etcd-autojoin.env' "$script" \
+    || { echo "join does not write the file the unit reads" >&2; exit 1; }
 
   grep -q 'https://${newIp}:2379' "$script" \
     || { echo "join endpoints are missing a peer" >&2; exit 1; }

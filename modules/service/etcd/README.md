@@ -32,6 +32,19 @@ the promotion until then, so that unit simply retries.
 The hook runs as root, via systemd's `+` prefix: `etcd-client-cert` is owned by
 `kubernetes` while the etcd unit runs as `etcd`, and the key is mode 0400.
 
+A joining machine does not use the declarative `initialCluster`. etcd checks
+that list against the membership it reads back from a peer and refuses to start
+on any mismatch (`member count is unequal`, from
+`ValidateClusterAndAssignIDs`), and the declarative list names every machine in
+the inventory, including ones that have not joined. That is wrong as soon as
+two machines are waiting to join: registering the first leaves the cluster one
+member larger while its own list still counts both. `member add` reports the
+membership the new member must claim, so the join writes that to
+`/run/etcd-autojoin.env` and the unit reads it as an `EnvironmentFile`, which
+systemd applies after the unit's `Environment=` lines. The file is optional and
+lives on tmpfs: a machine that already holds data skips the join, and etcd
+ignores `initialCluster` once it has a write-ahead log.
+
 Two cases are reported rather than repaired:
 
 - A machine whose data directory is empty while it is still listed as a member.

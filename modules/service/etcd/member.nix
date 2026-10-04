@@ -18,6 +18,12 @@ let
 
   selfPeerUrl = "https://${cfg.advertiseAddress}:2380";
 
+  # Written by the join and read back by etcd as an `EnvironmentFile`, which
+  # systemd applies after the unit's `Environment=` lines and so wins over the
+  # declarative `initialCluster`. On tmpfs, so a machine that is reinstalled
+  # starts from a fresh join rather than a stale membership.
+  initialClusterEnvFile = "/run/etcd-autojoin.env";
+
   # Every other member's client URL. The machine's own is useless for joining:
   # the point is to reach a member that is already in the cluster, and this one
   # is not serving yet when the join runs.
@@ -85,8 +91,26 @@ let
       fi
 
       echo "registering ${config.networking.hostName} as a learner via $endpoint"
-      etcdctl --endpoints="$endpoint" member add ${lib.escapeShellArg config.networking.hostName} \
-        --peer-urls=${lib.escapeShellArg selfPeerUrl} --learner
+      added=$(etcdctl --endpoints="$endpoint" member add ${lib.escapeShellArg config.networking.hostName} \
+        --peer-urls=${lib.escapeShellArg selfPeerUrl} --learner)
+      printf '%s\n' "$added"
+
+      # etcd validates this machine's initial cluster against the membership it
+      # reads back from a peer and refuses to start on a count mismatch
+      # ("member count is unequal", ValidateClusterAndAssignIDs). The
+      # declarative `initialCluster` lists every machine in the inventory, which
+      # is wrong the moment more than one of them has yet to join. `member add`
+      # prints the membership that this machine must actually claim, so take it
+      # from there.
+      initial_cluster=$(printf '%s\n' "$added" | grep '^ETCD_INITIAL_CLUSTER=' || true)
+
+      if [ -z "$initial_cluster" ]; then
+        echo "member add printed no ETCD_INITIAL_CLUSTER to start from" >&2
+        exit 1
+      fi
+
+      # Peer URLs rather than anything secret, and systemd reads it as root.
+      printf '%s\n' "$initial_cluster" > ${lib.escapeShellArg initialClusterEnvFile}
     '';
   };
 
@@ -220,7 +244,12 @@ in
     # this machine needs did not land.
     systemd.services.etcd = lib.mkIf autoJoinEnabled {
       environment = etcdctlCredentials;
-      serviceConfig.ExecStartPre = [ "+${lib.getExe autoJoinScript}" ];
+      serviceConfig = {
+        ExecStartPre = [ "+${lib.getExe autoJoinScript}" ];
+        # Optional: a machine that already holds data skips the join and writes
+        # no file, and etcd ignores `initialCluster` once it has a WAL anyway.
+        EnvironmentFile = "-${initialClusterEnvFile}";
+      };
     };
 
     systemd.services.etcd-promote = lib.mkIf autoJoinEnabled {
