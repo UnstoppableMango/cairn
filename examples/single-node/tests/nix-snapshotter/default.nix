@@ -86,8 +86,8 @@ base
         );
 
       # The node's whole store, read-only, so a path the daemon builds is
-      # visible to the pod, and the daemon's socket. The image has no /tmp,
-      # which kubectl cp and nix's cache need.
+      # visible to the pod, and the daemon's socket. The emptyDir /tmp is
+      # HOME, for nix's cache.
       nodeStore = {
         volumes = [
           {
@@ -278,12 +278,12 @@ base
     assert not uid_map.split()[:2] == ["0", "0"], f"not user-namespaced: {uid_map}"
 
     # A build from inside that pod, through the node's daemon, in its sandbox.
-    node1.succeed(
-        "kubectl cp /etc/nix-snapshotter-test/sandbox-probe.nix userns:/tmp/probe.nix"
-    )
-    # The driver does not log a failed command's output, so print nix's own.
+    # The expression is a store path, so the pod sees it through the store
+    # mount; the /etc entry is only a symlink to it.
+    probe = node1.succeed("readlink -f /etc/nix-snapshotter-test/sandbox-probe.nix").strip()
+    # The driver does not log a failed command's output, so print nix's.
     status, output = node1.execute(
-        "kubectl exec userns -- nix-build --no-out-link /tmp/probe.nix 2>&1"
+        f"kubectl exec userns -- nix-build --no-out-link {probe} 2>&1"
     )
     print(output)
     if status != 0:
