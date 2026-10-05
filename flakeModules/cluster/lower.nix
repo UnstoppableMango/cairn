@@ -368,6 +368,10 @@ let
       ++ optional (elem mname kubeletMachines) {
         cluster.cairn.kubelet.rootDir = svc.kubelet.rootDir;
       }
+      # node-exporter runs wherever a kubelet does, as a DaemonSet.
+      ++ optional (svc.node-exporter.openFirewall && elem mname kubeletMachines) {
+        networking.firewall.allowedTCPPorts = [ svc.node-exporter.port ];
+      }
     );
   };
 in

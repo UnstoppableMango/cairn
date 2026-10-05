@@ -660,6 +660,30 @@ let
             description = "Path within the GitOps repository that Flux's root Kustomization targets.";
           };
         };
+
+        # Unlike every other entry here, not a clan service: cairn deploys
+        # nothing for it, and the lowering applies it straight to every
+        # kubelet machine. An `enable` that deploys node-exporter would sit
+        # alongside these.
+        node-exporter = {
+          openFirewall = mkOption {
+            type = types.bool;
+            default = false;
+            description = ''
+              Open node-exporter's port in every kubelet machine's firewall,
+              for a `hostNetwork` DaemonSet such as kube-prometheus-stack's.
+              The NixOS firewall drops its scrapes otherwise, and because it
+              drops rather than rejects, Prometheus reports a timeout rather
+              than a refused connection.
+            '';
+          };
+
+          port = mkOption {
+            type = types.port;
+            default = 9100;
+            description = "Port node-exporter listens on, opened when `openFirewall` is set.";
+          };
+        };
       };
     };
 

@@ -183,6 +183,17 @@ machines.big.maxPods = 250;
 
 The node's podCIDR is the ceiling: kube-controller-manager hands out a /24 per node by default, so 254 addresses, and pods admitted past that get no IP.
 
+### Node exporter
+
+A cluster scraped by a `hostNetwork` node-exporter, such as kube-prometheus-stack's, needs its port open on every kubelet machine:
+
+```nix
+services.node-exporter.openFirewall = true;
+```
+
+`services.node-exporter.port` defaults to 9100.
+Cairn does not deploy node-exporter itself; this only opens the port.
+
 ### Node labels
 
 Every machine gets `node-role.kubernetes.io/<role>`, applied by inoculant because kubelet is forbidden from setting those on itself.
