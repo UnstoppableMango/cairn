@@ -351,7 +351,9 @@ let
         };
       }
       ++ optional (elem mname etcdMachines) {
-        cluster.cairn.etcd.initialClusterState = svc.etcd.initialClusterState;
+        cluster.cairn.etcd = {
+          inherit (svc.etcd) initialClusterState autoJoin;
+        };
       }
       ++ optional (cluster.versions.kubernetesPackage != null && elem mname kubeletMachines) {
         services.kubernetes.package = cluster.versions.kubernetesPackage;

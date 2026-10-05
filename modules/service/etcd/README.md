@@ -14,6 +14,49 @@ with `etcdctl` and `etcdutl` on the member's PATH from the same set. A cluster
 that pins no minor follows nixpkgs' `pkgs.etcd`, and
 `cluster.cairn.etcd.package` overrides either.
 
+## Joining a running cluster
+
+`initialClusterState = "existing"` tells etcd it is joining rather than
+bootstrapping, but etcd refuses to start in that state until the member is
+already registered with the cluster. `autoJoin` does that registration, in an
+`ExecStartPre` on the etcd unit, instead of leaving an `etcdctl member add` to
+be remembered out of band.
+
+The machine joins as a raft **learner**. A voting member counts toward quorum
+from the moment it is added, so adding one to a healthy three-member cluster
+leaves four members needing three votes and no failures tolerated until the new
+machine finishes booting; a learner never counts toward quorum. An
+`etcd-promote.service` then promotes it once its log has caught up. etcd rejects
+the promotion until then, so that unit simply retries.
+
+The hook runs as root, via systemd's `+` prefix: `etcd-client-cert` is owned by
+`kubernetes` while the etcd unit runs as `etcd`, and the key is mode 0400.
+
+A joining machine does not use the declarative `initialCluster`. etcd checks
+that list against the membership it reads back from a peer and refuses to start
+on any mismatch (`member count is unequal`, from
+`ValidateClusterAndAssignIDs`), and the declarative list names every machine in
+the inventory, including ones that have not joined. That is wrong as soon as
+two machines are waiting to join: registering the first leaves the cluster one
+member larger while its own list still counts both. `member add` reports the
+membership the new member must claim, so the join writes that to
+`/run/etcd-autojoin.env` and the unit reads it as an `EnvironmentFile`, which
+systemd applies after the unit's `Environment=` lines. The file is optional and
+lives on tmpfs: a machine that already holds data skips the join, and etcd
+ignores `initialCluster` once it has a write-ahead log.
+
+Two cases are reported rather than repaired:
+
+- A machine whose data directory is empty while it is still listed as a member.
+  Recovery means `etcdctl member remove` first, which destroys that member's
+  data, so it is left to an operator.
+- No reachable peer. The join fails rather than guessing, which keeps a
+  genuinely absent cluster from being treated as one to join.
+
+A machine that already holds etcd data returns immediately without contacting
+anyone, so a whole cluster booting at once is never held up waiting for a peer
+that is also still starting.
+
 Exports each member's client URL (`https://<ip>:2379`) via clan's
 `endpoints` export interface (`endpoints.hosts`, the closest typed fit
 clan's exports mechanism offers for "a URL per machine"), consumed by the

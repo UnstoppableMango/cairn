@@ -313,6 +313,20 @@ let
               restoring into a live cluster.
             '';
           };
+
+          autoJoin = mkOption {
+            type = types.bool;
+            default = false;
+            description = ''
+              Register machines with the running cluster before their etcd
+              starts, rather than requiring `etcdctl member add` by hand. Only
+              takes effect alongside `initialClusterState = "existing"`.
+
+              A machine joins as a raft learner and is promoted once its log
+              has caught up, so a join never lowers the quorum the cluster can
+              survive. Machines already holding etcd data are left untouched.
+            '';
+          };
         };
 
         apiserver = {
