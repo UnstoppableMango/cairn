@@ -66,20 +66,36 @@ let
     }
   );
 
+  withNodeExporter = lowerSpec (
+    lib.recursiveUpdate exampleSpec {
+      services.node-exporter = {
+        openFirewall = true;
+        port = 9200;
+      };
+    }
+  );
+
   # Same stand-in for a downstream consumer flake as ./consumer-services.nix:
   # clan reads `config.self.inputs` to resolve `module.input = "cairn"`.
-  consumer = clan-core.lib.clan {
-    self.inputs = {
-      cairn.clan.modules = cairnModules;
-      inherit nixpkgs;
+  mkConsumer =
+    lowered:
+    clan-core.lib.clan {
+      self.inputs = {
+        cairn.clan.modules = cairnModules;
+        inherit nixpkgs;
+      };
+
+      directory = ./.;
+
+      imports = [ lowered ];
+
+      inventory.meta.name = "cairn-flake-module";
     };
 
-    directory = ./.;
+  consumer = mkConsumer lowered;
 
-    imports = [ lowered ];
-
-    inventory.meta.name = "cairn-flake-module";
-  };
+  firewallPortsOf =
+    c: machine: c.config.nixosConfigurations.${machine}.config.networking.firewall.allowedTCPPorts;
 
   inherit (lowered.inventory) instances;
 
@@ -244,6 +260,22 @@ let
               or null;
         in
         limitOf "worker1" == 1048576 && limitOf "cp1" == 1048576;
+    }
+    {
+      msg = "node-exporter's port stays closed unless asked for";
+      cond = !(lib.elem 9100 (firewallPortsOf consumer "worker1"));
+    }
+    {
+      # Every kubelet machine runs the DaemonSet, control plane included.
+      msg = "node-exporter.openFirewall opens its port on every kubelet machine";
+      cond =
+        let
+          c = mkConsumer withNodeExporter;
+        in
+        lib.all (m: lib.elem 9200 (firewallPortsOf c m)) [
+          "cp1"
+          "worker1"
+        ];
     }
     {
       msg = "per-machine keepalived priorities survive the lowering";
