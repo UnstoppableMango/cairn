@@ -32,4 +32,7 @@ in
       {
         LimitNOFILE = lib.mkDefault 1048576;
       };
+
+  config.virtualisation.containerd.settings.plugins."io.containerd.grpc.v1.cri".containerd.runtimes =
+    cfg.kubelet.containerdRuntimes;
 }

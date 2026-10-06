@@ -444,6 +444,25 @@ let
               subtracts from allocatable.
             '';
           };
+
+          containerdRuntimes = mkOption {
+            type = types.attrsOf (types.attrsOf types.anything);
+            default = { };
+            example = {
+              runc-cgroup-writable = {
+                runtime_type = "io.containerd.runc.v2";
+                cgroup_writable = true;
+                options.SystemdCgroup = true;
+              };
+            };
+            description = ''
+              containerd CRI runtime handlers added on every kubelet beside
+              nixpkgs' default `runc`, for Kubernetes RuntimeClasses to name.
+              Each value is written under
+              `plugins."io.containerd.grpc.v1.cri".containerd.runtimes.<name>`
+              and inherits nothing from `runc`.
+            '';
+          };
         };
 
         loadbalancer = {

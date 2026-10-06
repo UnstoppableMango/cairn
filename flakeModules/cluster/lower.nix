@@ -368,7 +368,9 @@ let
         cluster.cairn.metricsServer = metricsServerConfig;
       }
       ++ optional (elem mname kubeletMachines) {
-        cluster.cairn.kubelet.rootDir = svc.kubelet.rootDir;
+        cluster.cairn.kubelet = {
+          inherit (svc.kubelet) rootDir containerdRuntimes;
+        };
       }
       # node-exporter runs wherever a kubelet does, as a DaemonSet.
       ++ optional (svc.node-exporter.openFirewall && elem mname kubeletMachines) {

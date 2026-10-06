@@ -75,6 +75,27 @@ written as `{}`, so a consumer still setting one directly on
 `services.kubernetes.kubelet.extraConfig` does not collide with this
 module.
 
+## Runtime handlers
+
+`containerdRuntimes` adds containerd CRI runtime handlers beside nixpkgs' default `runc`, each one a `handler` a Kubernetes RuntimeClass can name.
+The cluster option `services.kubelet.containerdRuntimes` applies to every kubelet machine, so a RuntimeClass using one needs no `scheduling` section.
+
+Each value is written as-is under `plugins."io.containerd.grpc.v1.cri".containerd.runtimes.<name>`, the `version = 2` layout nixpkgs' kubernetes module writes.
+A handler inherits nothing from `runc`, so set `runtime_type`, and `options.SystemdCgroup = true` to match the kubelet's cgroup driver.
+
+```nix
+kubelet.containerdRuntimes.runc-cgroup-writable = {
+  runtime_type = "io.containerd.runc.v2";
+  cgroup_writable = true;
+  options.SystemdCgroup = true;
+};
+```
+
+`cgroup_writable` (containerd 2.1+) mounts `/sys/fs/cgroup` read-write in unprivileged containers.
+A pod that runs its own container runtime (dind, podman, buildkitd) needs that to create cgroups.
+Pair it with `hostUsers: false`, so runc delegates the pod's cgroup to the user namespace's root.
+Without a user namespace, root in the pod is root on the node.
+
 ## Kubernetes version
 
 The role accepts `kubernetesVersion`, a kubepkgs minor such as `"1.36"`.
