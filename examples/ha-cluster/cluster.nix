@@ -66,6 +66,10 @@
     worker2 = {
       role = "worker";
       ip = "10.10.0.22";
+      # Optional: pods on this node can run `nix:0/nix/store/...` images
+      # straight off its nix store. Per machine, so nodes move over one at a
+      # time, each drained first.
+      nixSnapshotter = true;
     };
   };
 

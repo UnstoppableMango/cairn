@@ -91,6 +91,15 @@ let
     key: m:
     if cluster.machines.${m}.${key} != null then cluster.machines.${m}.${key} else svc.kubelet.${key};
 
+  # Whether a machine's kubelet runs nix-snapshotter: its own override, else
+  # the cluster's, so nodes can move over one at a time.
+  effectiveNixSnapshotter =
+    m:
+    if cluster.machines.${m}.nixSnapshotter != null then
+      cluster.machines.${m}.nixSnapshotter
+    else
+      svc.kubelet.nixSnapshotter;
+
   minorOf = v: lib.toInt (lib.elemAt (lib.splitString "." v) 1);
 
   anyMachinePin = lib.any (m: m.kubernetesVersion != null) (lib.attrValues cluster.machines);
@@ -216,6 +225,7 @@ let
               systemReserved = effectiveReservation "systemReserved" m;
               kubeReserved = effectiveReservation "kubeReserved" m;
               evictionHard = effectiveReservation "evictionHard" m;
+              nixSnapshotter = effectiveNixSnapshotter m;
             }
             // clusterSettings
             // optionalAttrs (effectiveVersion m != null) {

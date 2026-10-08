@@ -85,6 +85,16 @@ in
             '';
           };
 
+          nixSnapshotter = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = ''
+              Run nix-snapshotter as this node's containerd snapshotter and
+              image service, so pods can run `nix:0/nix/store/...` images
+              off the node's nix store. Drain the node before switching it.
+            '';
+          };
+
           inherit (cairnLib.options) vip clusterName kubernetesVersion;
         };
       };
@@ -108,6 +118,7 @@ in
                 kubeReserved
                 evictionHard
                 ;
+              nixSnapshotter.enable = settings.nixSnapshotter;
             };
             kubernetesVersion = settings.kubernetesVersion;
           };

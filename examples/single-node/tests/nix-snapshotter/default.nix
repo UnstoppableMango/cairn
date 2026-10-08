@@ -12,8 +12,6 @@
 # addon images, still running with nix-snapshotter as the snapshotter.
 let
   base = import ../vm/default.nix { inherit cairnModules; };
-
-  socket = "/run/nix-snapshotter/nix-snapshotter.sock";
 in
 base
 // {
@@ -151,49 +149,9 @@ base
     {
       imports = [ base.nodes.node1 ];
 
-      systemd.services.nix-snapshotter = {
-        description = "containerd snapshotter that serves nix store paths";
-        wantedBy = [ "multi-user.target" ];
-        before = [ "containerd.service" ];
-        partOf = [ "containerd.service" ];
-        path = [ pkgs.nix ];
-        serviceConfig = {
-          Type = "notify";
-          Delegate = "yes";
-          KillMode = "mixed";
-          Restart = "always";
-          RestartSec = 2;
-          StateDirectory = "nix-snapshotter";
-          RuntimeDirectory = "nix-snapshotter";
-          RuntimeDirectoryPreserve = "yes";
-          ExecStart = "${lib.getExe' pkgs.nix-snapshotter "nix-snapshotter"} --config ${
-            (pkgs.formats.toml { }).generate "config.toml" { }
-          }";
-        };
-      };
-
-      virtualisation.containerd.settings = {
-        plugins."io.containerd.grpc.v1.cri".containerd.snapshotter = "nix";
-        plugins."io.containerd.transfer.v1.local".unpack_config = [
-          {
-            platform = "linux/amd64";
-            snapshotter = "nix";
-          }
-        ];
-        proxy_plugins.nix = {
-          type = "snapshot";
-          address = socket;
-          # nix-snapshotter does not advertise remap-ids, so for a
-          # user-namespaced pod containerd falls back to chowning the whole
-          # snapshot, which fails on the read-only store bind mounts. Declared
-          # here, containerd passes the id mapping instead; store paths that
-          # stay unmapped read as the overflow uid, which a read-only store
-          # does not mind.
-          capabilities = [ "remap-ids" ];
-        };
-      };
-
-      services.kubernetes.kubelet.extraOpts = "--image-service-endpoint unix://${socket}";
+      # The kubelet service's own switch: nix-snapshotter as containerd's
+      # snapshotter and the kubelet's image service.
+      cluster.cairn.kubelet.nixSnapshotter.enable = true;
 
       environment.etc = {
         "nix-snapshotter-test/plain.json".source = pod "plain" { };
