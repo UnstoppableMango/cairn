@@ -18,6 +18,8 @@
   clan-core,
   nixpkgs,
   kubepkgs,
+  # pkgs/upgrade, run against the example's plan with `--dry-run`.
+  cairn-upgrade,
   pkgs,
   lib,
 }:
@@ -39,19 +41,27 @@ let
     moduleInput = "cairn";
   };
 
+  evalSpec =
+    spec:
+    (lib.evalModules {
+      modules = [
+        { options.cairn = import ../flakeModules/cluster/options.nix { inherit lib; }; }
+        { cairn.clusters.example = spec; }
+      ];
+    }).config.cairn.clusters.example;
+
   lowerSpec =
     spec:
-    import ../flakeModules/cluster/lower.nix { inherit lib cairnLib; }
-      {
-        name = "example";
-        multi = false;
-      }
-      (lib.evalModules {
-        modules = [
-          { options.cairn = import ../flakeModules/cluster/options.nix { inherit lib; }; }
-          { cairn.clusters.example = spec; }
-        ];
-      }).config.cairn.clusters.example;
+    import ../flakeModules/cluster/lower.nix { inherit lib cairnLib; } {
+      name = "example";
+      multi = false;
+    } (evalSpec spec);
+
+  # What `cairn-upgrade` walks, as the `cairn-upgrade-plan` output emits it.
+  plan = import ../flakeModules/cluster/plan.nix { inherit lib; } {
+    cluster = evalSpec exampleSpec;
+  };
+  planFile = pkgs.writeText "cairn-upgrade-plan.json" (builtins.toJSON { example = plan; });
 
   lowered = lowerSpec exampleSpec;
 
@@ -443,6 +453,34 @@ let
         cp1.apiServerPort == 6443 && cp1.coredns.replicas == 2 && cp1.etcd.initialClusterState == "new";
     }
     {
+      # Workers before the control plane would put a kubelet ahead of its
+      # apiserver mid-rollout; the VIP holder (cp1) goes last so the VIP
+      # moves once.
+      msg = "the upgrade plan walks the control plane by ascending VIP priority, then workers";
+      cond =
+        map (m: m.machine) plan.machines == [
+          "cp3"
+          "cp2"
+          "cp1"
+          "worker1"
+          "worker2"
+        ];
+    }
+    {
+      msg = "the upgrade plan drains workers but not master-only machines, and gates on the pinned minor";
+      cond =
+        let
+          byName = lib.listToAttrs (map (m: lib.nameValuePair m.machine m) plan.machines);
+        in
+        !byName.cp1.drain
+        && byName.cp1.etcd
+        && byName.worker1.drain
+        && !byName.worker1.etcd
+        && byName.worker1.kubernetesVersion == "1.36"
+        && byName.worker1.targetHost == "root@10.10.0.21"
+        && plan.apiserverPort == 6444;
+    }
+    {
       # NixOS defaults this to false, which rejects every CSI node plugin and
       # Ceph OSD daemon at admission. Assert the whole path, since the value
       # only matters where it lands on services.kubernetes.
@@ -484,6 +522,14 @@ lib.throwIf (failures != [ ])
   (
     pkgs.runCommand "cairn-flake-module" { } ''
       ${builtins.deepSeq probe ":"}
+      ${lib.getExe cairn-upgrade} --plan ${planFile} --dry-run > dry-run
+      cat dry-run
+      grep -q '^cp3 (control-plane; etcd,apiserver,kubelet)$' dry-run
+      grep -q 'cordon and drain worker1' dry-run
+      if grep -q 'cordon and drain cp' dry-run; then
+        echo "dry run drains a master-only machine" >&2
+        exit 1
+      fi
       touch "$out"
     ''
   )

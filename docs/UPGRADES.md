@@ -3,8 +3,8 @@
 This document is the design for upgrading a running cairn cluster: new Kubernetes minors, new nixpkgs pins, and the machinery that makes a rolling upgrade safe.
 It records the architectural decisions first, then the phased implementation plan, then the manual runbook the tooling automates.
 
-Status: phases 0 and 1 are implemented, apart from the etcd `initialClusterState` change in phase 0.
-Phases 2 through 4 are design.
+Status: phases 0 through 2 are implemented, apart from the etcd `initialClusterState` change in phase 0.
+Phases 3 and 4 are design.
 
 ## Summary of Decisions
 
@@ -132,23 +132,34 @@ Implemented.
 
 ### Phase 2: the orchestrator
 
-A `writeShellApplication` in `pkgs/upgrade/` with `kubectl`, `etcdctl`, `jq`, and the clan CLI in `runtimeInputs`, exposed as `packages.upgrade` and `apps.upgrade` in `flake.nix` `perSystem`.
+`cairn-upgrade`, a `writeShellApplication` in `pkgs/upgrade/` with the clan CLI, `kubectl`, `etcdctl`, `curl` and `jq` in `runtimeInputs`.
+cairn's flake module adds it to every consumer flake as `packages.cairn-upgrade`, so a consumer runs `nix run .#cairn-upgrade` from its own flake.
 Shell is sufficient at this size; a rewrite in Go is justified only if it grows real state.
 
-The machine ordering comes from the same evaluation the cluster is built from, not a hand-maintained list: the lowering additionally emits an upgrade plan (`nix eval .#cairn-upgrade-plan --json`), an ordered list of `{ machine, roles, targetHost }` with control-plane machines first.
+The machine ordering comes from the same evaluation the cluster is built from, not a hand-maintained list.
+`flakeModules/cluster/plan.nix` emits `cairn-upgrade-plan.<cluster>` (`nix eval .#cairn-upgrade-plan --json`): the apiserver port, and an ordered list of machines, each with its `ip`, `targetHost`, which of etcd, apiserver and kubelet it runs, whether it is drained, and the minor its kubelet should report.
+Control-plane machines (any machine running etcd or the apiserver) come first, by ascending keepalived priority so the default VIP holder goes last and the VIP moves once, then workers.
 
 The run:
 
-1. `etcdctl snapshot save` on one member, stored on the operator's machine.
-1. For each control-plane machine, serially:
-   - Pre-gate: every etcd member healthy (`etcdctl endpoint health --cluster`), every apiserver answering `/readyz` with 200 probed directly on its backend port rather than through the VIP, and a refusal to proceed if any other member is already unhealthy (the quorum-loss guard).
+1. `etcdctl snapshot save` from the first healthy member, written to `--snapshot-dir`.
+1. For each machine, serially:
+   - Pre-gate: every *other* etcd member healthy and every *other* apiserver answering `/readyz` on its own port rather than through the VIP.
+     This is the quorum-loss guard: an unhealthy peer stops the rollout before anything goes down.
+     The machine about to update is only reported, since updating it may be the fix.
+   - For a schedulable machine (every worker, and a `schedulable` control-plane machine): `kubectl cordon`, then `kubectl drain --ignore-daemonsets --delete-emptydir-data`.
    - `clan machines update <machine>`.
-   - Post-gate with timeout: the local etcd member rejoined and healthy, `/readyz` 200, the node Ready, the HAProxy backend back up.
+   - Post-gate, each with a timeout: the machine's etcd member healthy, its `/readyz` 200, and its node Ready with the kubelet at the pinned minor.
      Because etcd and the apiserver are colocated, per-machine serialization satisfies the etcd one-member-at-a-time rule and the apiserver-before-kubelet ordering at once.
-1. For each worker, serially: `kubectl cordon`, `kubectl drain --ignore-daemonsets --delete-emptydir-data` with a timeout, `clan machines update <machine>`, wait for Ready with the kubelet reporting the target version, `kubectl uncordon`.
+   - `kubectl uncordon` if it was drained.
 
-Flags: `--only <machine>` to resume a rollout mid-way, `--skip-drain`, `--dry-run` to print the plan and gates without acting, and `--rollback <machine>`.
-Any gate failure stops the rollout before the next machine and prints the observed state.
+Every gate runs from the operator's machine, so nothing new has to be deployed before the first rollout.
+etcd is reached with the client certificate from the current kubeconfig context, which cairn's CA signed and etcd therefore accepts; `ETCDCTL_CACERT`, `ETCDCTL_CERT` and `ETCDCTL_KEY` override it.
+
+Flags: `--only <machine>` (repeatable) and `--from <machine>` to resume a rollout mid-way, `--skip-drain`, `--no-snapshot`, `--timeout`, `--dry-run` to print the plan and gates without acting, `--rollback <machine>`, and `--plan <file>` to read a plan without evaluating the flake.
+Any gate failure stops the rollout before the next machine and says which gate failed.
+
+`checks/flake-module.nix` asserts the plan's order and drain flags for `examples/ha-cluster` and runs `--dry-run` against it.
 
 The gate and sequencing logic is written to be hosted by the phase 4 operator later: shared shape, not shared code.
 Shell is right for the CLI; the operator reimplements the same loop in Go.
