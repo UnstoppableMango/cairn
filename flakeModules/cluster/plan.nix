@@ -54,12 +54,14 @@ let
 
   isControlPlane = m: runs "etcd" m || runs "apiserver" m;
 
+  # An unset priority falls back to the loadbalancer service's own default
+  # (modules/service/loadbalancer/options.nix).
   priority =
     m:
     if cluster.machines.${m}.keepalivedPriority != null then
       cluster.machines.${m}.keepalivedPriority
     else
-      0;
+      100;
 
   # `sort` is not stable, so the name breaks ties explicitly.
   controlPlane = lib.sort (

@@ -165,7 +165,11 @@ if [ "$dry_run" = 1 ]; then
     if [ "$(field "$m" apiserver)" = true ]; then post+=("/readyz on :$apiserver_port"); fi
     if [ "$(field "$m" kubelet)" = true ]; then
       v=$(field "$m" kubernetesVersion)
-      post+=("node Ready${v:+ at v$v}")
+      if [ "$v" = null ]; then
+        post+=("node Ready")
+      else
+        post+=("node Ready at v$v")
+      fi
     fi
     if [ "${#post[@]}" -gt 0 ]; then
       echo "  post-gate: $(jq -rn '$ARGS.positional | join(", ")' --args "${post[@]}")"
@@ -197,12 +201,22 @@ kubeconfig_credential() {
   chmod 600 "$out"
 }
 
+# Each credential not supplied comes from the kubeconfig on its own, so
+# overriding one keeps the others. The CA also verifies the apiservers.
 export ETCDCTL_API=3
-if [ "${#etcd_machines[@]}" -gt 0 ] && [ -z "${ETCDCTL_CERT:-}${ETCDCTL_KEY:-}${ETCDCTL_CACERT:-}" ]; then
+if [ -z "${ETCDCTL_CACERT:-}" ]; then
   kubeconfig_credential .clusters[0].cluster.certificate-authority-data .clusters[0].cluster.certificate-authority "$workdir/ca.crt"
-  kubeconfig_credential .users[0].user.client-certificate-data .users[0].user.client-certificate "$workdir/client.crt"
-  kubeconfig_credential .users[0].user.client-key-data .users[0].user.client-key "$workdir/client.key"
-  export ETCDCTL_CACERT="$workdir/ca.crt" ETCDCTL_CERT="$workdir/client.crt" ETCDCTL_KEY="$workdir/client.key"
+  export ETCDCTL_CACERT="$workdir/ca.crt"
+fi
+if [ "${#etcd_machines[@]}" -gt 0 ]; then
+  if [ -z "${ETCDCTL_CERT:-}" ]; then
+    kubeconfig_credential .users[0].user.client-certificate-data .users[0].user.client-certificate "$workdir/client.crt"
+    export ETCDCTL_CERT="$workdir/client.crt"
+  fi
+  if [ -z "${ETCDCTL_KEY:-}" ]; then
+    kubeconfig_credential .users[0].user.client-key-data .users[0].user.client-key "$workdir/client.key"
+    export ETCDCTL_KEY="$workdir/client.key"
+  fi
 fi
 
 # ─── Gates ─────────────────────────────────────────────────────────────────
@@ -212,15 +226,16 @@ etcd_healthy() {
 }
 
 # /readyz on the apiserver's own port rather than the VIP, so a ready backend
-# is never masked by another one answering for it.
+# is never masked by another one answering for it. The apiserver certificate
+# lists every control-plane IP, so the cluster CA verifies it there.
 apiserver_ready() {
-  curl -sfk -o /dev/null --max-time 5 "https://$(field "$1" ip):$apiserver_port/readyz"
+  curl -sf --cacert "$ETCDCTL_CACERT" -o /dev/null --max-time 5 "https://$(field "$1" ip):$apiserver_port/readyz"
 }
 
 node_ready() {
   local m=$1 want status version
   want=$(field "$m" kubernetesVersion)
-  read -r status version < <(kubectl get node "$m" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status} {.status.nodeInfo.kubeletVersion}' 2>/dev/null) || return 1
+  read -r status version < <(kubectl get node "$m" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status} {.status.nodeInfo.kubeletVersion}{"\n"}' 2>/dev/null) || return 1
   [ "$status" = True ] || return 1
   if [ "$want" != null ]; then
     case "$version" in
@@ -301,7 +316,10 @@ for m in "${selected[@]}"; do
   if [ "$skip_drain" = 0 ] && [ "$(field "$m" drain)" = true ]; then
     drain=1
     kubectl cordon "$m"
-    kubectl drain "$m" --ignore-daemonsets --delete-emptydir-data --timeout="${timeout}s"
+    if ! kubectl drain "$m" --ignore-daemonsets --delete-emptydir-data --timeout="${timeout}s"; then
+      kubectl uncordon "$m"
+      die "could not drain $m; uncordoned it and stopped before updating"
+    fi
   fi
 
   log "$m: updating"
