@@ -118,7 +118,9 @@ in
                 kubeReserved
                 evictionHard
                 ;
-              nixSnapshotter.enable = settings.nixSnapshotter;
+              # mkDefault, so a machine's own NixOS config can still turn it
+              # on or off directly.
+              nixSnapshotter.enable = lib.mkDefault settings.nixSnapshotter;
             };
             kubernetesVersion = settings.kubernetesVersion;
           };
