@@ -50,6 +50,14 @@ in
       };
     };
 
+    # containerd is configured for the `nix` snapshotter, so without it every
+    # image operation fails. Requiring it keeps containerd from starting
+    # half-working; `before` and `partOf` alone only order and restart them.
+    systemd.services.containerd = {
+      requires = [ "nix-snapshotter.service" ];
+      after = [ "nix-snapshotter.service" ];
+    };
+
     virtualisation.containerd.settings = {
       plugins."io.containerd.grpc.v1.cri".containerd.snapshotter = "nix";
       plugins."io.containerd.transfer.v1.local".unpack_config = [
