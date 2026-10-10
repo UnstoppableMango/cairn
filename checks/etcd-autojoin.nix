@@ -142,6 +142,9 @@ let
     promoteUnit =
       assert join1.systemd.services.etcd-promote.serviceConfig.Restart == "on-failure";
       assert join1.systemd.services.etcd-promote.unitConfig.StartLimitIntervalSec == 0;
+      # Restarting etcd queues the promotion again, so a first start that
+      # times out does not strand the learner.
+      assert lib.elem "etcd.service" join1.systemd.services.etcd-promote.wantedBy;
       join1.systemd.services.etcd-promote.serviceConfig.Type;
 
     # A learner refuses `MemberList` and `MemberPromote`, so the promote has to
@@ -161,6 +164,7 @@ let
     # member listed.
     removeViaPeers =
       assert join1.systemd.services.etcd-remove-members.serviceConfig.Restart == "on-failure";
+      assert lib.elem "etcd.service" join1.systemd.services.etcd-remove-members.wantedBy;
       assert lib.hasInfix "https://${newIp}:2379" removeExecStart;
       assert !(lib.hasInfix "https://${joinIp}:2379" removeExecStart);
       assert lib.hasInfix "gone1" removeExecStart;
