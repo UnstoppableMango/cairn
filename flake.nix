@@ -158,8 +158,9 @@
               cairnModules = config.flake.clan.modules;
             };
 
-            # Coverage for etcd's `autoJoin`, whose root prefix and endpoint
-            # exclusion fail only at runtime (see checks/etcd-autojoin.nix).
+            # Coverage for etcd's `autoJoin` and `removedMembers`, whose root
+            # prefix and endpoint exclusion fail only at runtime (see
+            # checks/etcd-autojoin.nix).
             checks.etcd-autojoin = import ./checks/etcd-autojoin.nix {
               inherit lib pkgs;
               inherit (inputs) clan-core nixpkgs;

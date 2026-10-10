@@ -362,7 +362,7 @@ let
       }
       ++ optional (elem mname etcdMachines) {
         cluster.cairn.etcd = {
-          inherit (svc.etcd) initialClusterState autoJoin;
+          inherit (svc.etcd) initialClusterState autoJoin removedMembers;
         };
       }
       ++ optional (cluster.versions.kubernetesPackage != null && elem mname kubeletMachines) {

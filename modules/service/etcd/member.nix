@@ -144,6 +144,42 @@ let
     '';
   };
 
+  # Removes the members named in `removedMembers` that are still registered,
+  # and does nothing once none are. Every remaining member runs it, so the first
+  # to get there does the removal and the rest find nothing left to remove.
+  #
+  # The endpoints are the other members' client URLs, passed as the first
+  # argument, for the same reason as the promote: this machine may itself be a
+  # learner, which refuses `MemberList`. A removal that would lose quorum is
+  # refused by etcd itself (`--strict-reconfig-check`, on by default).
+  removeScript = pkgs.writeShellApplication {
+    name = "etcd-remove-members";
+    runtimeInputs = cfg.tools;
+    text = ''
+      export ETCDCTL_ENDPOINTS="$1"
+      shift
+
+      members=$(etcdctl member list)
+
+      for name in "$@"; do
+        # `member list` prints `ID, status, name, peer URLs, client URLs,
+        # is learner`. A member added but never started has an empty name and
+        # cannot be matched; `etcdctl member remove <ID>` is the way out there.
+        id=$(printf '%s\n' "$members" | awk -F', ' -v name="$name" '$3 == name { print $1 }')
+
+        if [ -z "$id" ]; then
+          echo "$name is not a member; nothing to remove"
+          continue
+        fi
+
+        echo "removing member $name ($id)"
+        etcdctl member remove "$id"
+      done
+    '';
+  };
+
+  removedButListed = lib.intersectLists cfg.removedMembers (map (n: n.name) cfg.nodes);
+
   autoJoinEnabled = cfg.autoJoin && cfg.initialClusterState == "existing";
 in
 {
@@ -199,6 +235,24 @@ in
         A machine whose data directory is empty while it is still listed as a
         member is left alone and reported, since recovering that needs
         `etcdctl member remove`, which destroys the member's data.
+      '';
+    };
+
+    removedMembers = lib.mkOption {
+      type = lib.types.listOf lib.types.nonEmptyStr;
+      default = [ ];
+      example = [ "old-node" ];
+      description = ''
+        Names of etcd members to remove from the running cluster, for machines
+        that have left the inventory. Every remaining member runs
+        `etcd-remove-members.service`, which removes those still registered
+        and does nothing once none are, so the name can stay listed until every
+        member has been deployed and then be dropped.
+
+        A member is never removed for being absent from the inventory alone: a
+        machine that has just joined is absent from the configuration of every
+        member not yet redeployed, so only names listed here are touched. A
+        name still in the inventory is rejected by an assertion.
       '';
     };
   };
@@ -273,6 +327,39 @@ in
         # runs as root already and needs no `+`.
         Restart = "on-failure";
         RestartSec = "15s";
+      };
+      unitConfig.StartLimitIntervalSec = 0;
+    };
+
+    assertions = [
+      {
+        assertion = removedButListed == [ ];
+        message = "cluster.cairn.etcd.removedMembers names machines that are still etcd members: ${lib.concatStringsSep ", " removedButListed}";
+      }
+    ];
+
+    systemd.services.etcd-remove-members = lib.mkIf (cfg.removedMembers != [ ]) {
+      description = "Remove departed members from the etcd cluster";
+      after = [ "etcd.service" ];
+      requires = [ "etcd.service" ];
+      wantedBy = [ "multi-user.target" ];
+      environment = etcdctlCredentials;
+      serviceConfig = {
+        Type = "oneshot";
+        # Arguments rather than `environment` entries, for the same reason as
+        # the promote unit's.
+        ExecStart = lib.escapeShellArgs (
+          [
+            (lib.getExe removeScript)
+            joinEndpoints
+          ]
+          ++ cfg.removedMembers
+        );
+        # Retried rather than failed for good, since the other members may
+        # still be starting, or etcd may refuse the removal until enough of
+        # them are back to keep quorum.
+        Restart = "on-failure";
+        RestartSec = "30s";
       };
       unitConfig.StartLimitIntervalSec = 0;
     };

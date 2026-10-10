@@ -341,6 +341,21 @@ let
               survive. Machines already holding etcd data are left untouched.
             '';
           };
+
+          removedMembers = mkOption {
+            type = types.listOf types.nonEmptyStr;
+            default = [ ];
+            example = [ "old-node" ];
+            description = ''
+              Names of etcd members to remove from the running cluster, for
+              machines taken out of `machines`. Every remaining member removes
+              those still registered and does nothing once none are, so a name
+              can be dropped again once every member has been deployed. Members
+              absent from `machines` are never removed unless named here, since
+              a machine that has just joined is absent from every member not
+              yet redeployed.
+            '';
+          };
         };
 
         apiserver = {
