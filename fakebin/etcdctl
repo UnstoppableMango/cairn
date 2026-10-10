@@ -1,4 +1,0 @@
-#!/bin/sh
-if [ "$1" = member ] && [ "$2" = list ]; then
-printf '%s\n' "8e9e05c52164694d, started, pik8s2, https://10.0.69.102:2380, https://10.0.69.102:2379, false" "aaaa, started, pik8s4, https://10.0.69.104:2380, https://10.0.69.104:2379, false" "bbbb, unstarted, , https://10.0.69.108:2380, , true"
-else echo "etcdctl $*"; fi
