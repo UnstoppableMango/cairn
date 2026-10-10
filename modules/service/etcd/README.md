@@ -59,6 +59,31 @@ A machine that already holds etcd data returns immediately without contacting
 anyone, so a whole cluster booting at once is never held up waiting for a peer
 that is also still starting.
 
+## Removing a member
+
+A machine taken out of the `member` role stays registered with the cluster
+until something runs `etcdctl member remove`. Naming it in `removedMembers`
+does that: every remaining member runs `etcd-remove-members.service`, which
+removes each listed name still in `etcdctl member list` and does nothing once
+none are. The first member to get there does the removal; the others find it
+gone, or fail on the race and find it gone on their retry. Once every member
+has been deployed the name can be dropped from the list.
+
+Members are matched by name, which is the machine's hostname. A member that
+was added but never started has no name yet and cannot be matched, so it still
+needs `etcdctl member remove <ID>`.
+
+Nothing is removed for being absent from the inventory alone. A machine that
+has just joined is missing from the configuration of every member that has not
+been redeployed since, so removing unknown members would remove it. Naming a
+machine that is still a member fails evaluation.
+
+The unit asks the other members, like the promote, and retries every 30
+seconds on failure. etcd refuses a removal that would leave too few started
+members for quorum (`--strict-reconfig-check`, on by default), so a removal
+attempted while other members are down waits for them rather than taking the
+cluster down.
+
 Exports each member's client URL (`https://<ip>:2379`) via clan's
 `endpoints` export interface (`endpoints.hosts`, the closest typed fit
 clan's exports mechanism offers for "a URL per machine"), consumed by the

@@ -75,21 +75,27 @@ let
     # The three states the option can be in. Every machine is an etcd member,
     # so each one's `nodes` lists all three and the endpoint-exclusion
     # assertion below has something to exclude.
+    #
+    # join1 also names a departed member, independently of autoJoin.
     machines.join1 = {
       nixpkgs.hostPlatform = system;
       cluster.cairn.etcd = {
         autoJoin = true;
         initialClusterState = "existing";
+        removedMembers = [ "gone1" ];
       };
     };
 
     # `autoJoin` alone does nothing: a `new` cluster bootstraps from
     # `initialCluster` and has nobody to register with.
+    #
+    # new1 names a machine still in the inventory, which the assertion rejects.
     machines.new1 = {
       nixpkgs.hostPlatform = system;
       cluster.cairn.etcd = {
         autoJoin = true;
         initialClusterState = "new";
+        removedMembers = [ "off1" ];
       };
     };
 
@@ -110,6 +116,10 @@ let
 
   # The script itself, with systemd's root-prefix stripped back off.
   joinScript = lib.removePrefix "+" joinPreStart;
+
+  removeExecStart = join1.systemd.services.etcd-remove-members.serviceConfig.ExecStart;
+
+  failedAssertions = machine: map (a: a.message) (lib.filter (a: !a.assertion) machine.assertions);
 
   probe = {
     # The hook exists, and runs as root rather than as the unit's `etcd` user.
@@ -147,6 +157,29 @@ let
       assert !(lib.hasInfix self execStart);
       execStart;
 
+    # Removal goes to the other members, like the promote, and names only the
+    # member listed.
+    removeViaPeers =
+      assert join1.systemd.services.etcd-remove-members.serviceConfig.Restart == "on-failure";
+      assert lib.hasInfix "https://${newIp}:2379" removeExecStart;
+      assert !(lib.hasInfix "https://${joinIp}:2379" removeExecStart);
+      assert lib.hasInfix "gone1" removeExecStart;
+      removeExecStart;
+
+    # Naming a machine that is still in the inventory would remove a live
+    # member, so evaluation refuses it.
+    removeRejectsMembers =
+      assert lib.any (lib.hasInfix "still etcd members: off1") (failedAssertions new1);
+      # Only this module's assertion: an evaluation with no file systems or
+      # boot loader fails some of NixOS's own.
+      assert !(lib.any (lib.hasInfix "removedMembers") (failedAssertions join1));
+      true;
+
+    # No names, no unit.
+    removeOffByDefault =
+      assert !(off1.systemd.services ? etcd-remove-members);
+      off1.cluster.cairn.etcd.removedMembers;
+
     # A `new` cluster gets no hook, and neither does the default.
     newClusterUntouched =
       assert preStartOf new1 == [ ];
@@ -164,6 +197,8 @@ pkgs.runCommand "cairn-etcd-autojoin" { } ''
 
   # Referencing the script realises it, which is what runs shellcheck.
   script=${joinScript}
+  # Likewise for the removal script, which the unit's command line carries.
+  : ${lib.escapeShellArg removeExecStart}
 
   grep -q -- '--learner' "$script" \
     || { echo "join does not add the member as a learner" >&2; exit 1; }
