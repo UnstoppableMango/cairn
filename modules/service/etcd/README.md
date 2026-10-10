@@ -27,7 +27,9 @@ from the moment it is added, so adding one to a healthy three-member cluster
 leaves four members needing three votes and no failures tolerated until the new
 machine finishes booting; a learner never counts toward quorum. An
 `etcd-promote.service` then promotes it once its log has caught up. etcd rejects
-the promotion until then, so that unit simply retries.
+the promotion until then, so that unit simply retries. It asks the other members
+rather than the machine's own etcd, since a learner refuses `MemberList` and
+`MemberPromote`.
 
 The hook runs as root, via systemd's `+` prefix: `etcd-client-cert` is owned by
 `kubernetes` while the etcd unit runs as `etcd`, and the key is mode 0400.

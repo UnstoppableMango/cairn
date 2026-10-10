@@ -134,6 +134,19 @@ let
       assert join1.systemd.services.etcd-promote.unitConfig.StartLimitIntervalSec == 0;
       join1.systemd.services.etcd-promote.serviceConfig.Type;
 
+    # A learner refuses `MemberList` and `MemberPromote`, so the promote has to
+    # go to the other members and never to this machine's own etcd.
+    promoteViaPeers =
+      let
+        execStart = join1.systemd.services.etcd-promote.serviceConfig.ExecStart;
+        peer = "https://${newIp}:2379";
+        self = "https://${joinIp}:2379";
+      in
+      assert lib.hasInfix peer execStart;
+      assert !(lib.hasInfix "127.0.0.1" execStart);
+      assert !(lib.hasInfix self execStart);
+      execStart;
+
     # A `new` cluster gets no hook, and neither does the default.
     newClusterUntouched =
       assert preStartOf new1 == [ ];
