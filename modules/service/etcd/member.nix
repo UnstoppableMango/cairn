@@ -116,12 +116,16 @@ let
 
   # Promotes the learner once its log has caught up. etcd rejects the promotion
   # until then, so failing and letting systemd retry is the whole mechanism.
+  #
+  # Both calls go to the other members, which the unit names in
+  # `ETCDCTL_ENDPOINTS`. A learner answers only `Status` and serializable
+  # reads, refusing `MemberList` and `MemberPromote` alike with "rpc not
+  # supported for learner", so asking this machine's own etcd would retry
+  # forever.
   promoteScript = pkgs.writeShellApplication {
     name = "etcd-promote";
     runtimeInputs = cfg.tools;
     text = ''
-      export ETCDCTL_ENDPOINTS=https://127.0.0.1:2379
-
       line=$(etcdctl member list | grep -F ${lib.escapeShellArg selfPeerUrl} || true)
 
       if [ -z "$line" ]; then
@@ -257,7 +261,9 @@ in
       after = [ "etcd.service" ];
       requires = [ "etcd.service" ];
       wantedBy = [ "multi-user.target" ];
-      environment = etcdctlCredentials;
+      environment = etcdctlCredentials // {
+        ETCDCTL_ENDPOINTS = joinEndpoints;
+      };
       serviceConfig = {
         Type = "oneshot";
         ExecStart = lib.getExe promoteScript;
