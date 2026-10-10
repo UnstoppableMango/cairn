@@ -148,7 +148,7 @@ The rest of the surface, all optional:
 | `services.pki.ca.override` | `null` | Bring-your-own CA material, see [Generate Secrets](#generate-secrets) |
 | `services.pki.certs` | `{}` | Additional certificates for your own workloads |
 | `services.etcd.initialClusterState` | `"new"` | Set to `"existing"` when replacing a member or restoring into a live cluster |
-| `services.coredns.{clusterIp,clusterDomain,replicas,corefile,image}` | derived | CoreDNS tuning |
+| `services.coredns.{clusterIp,clusterDomain,replicas,corefile,package,image}` | derived | CoreDNS tuning |
 | `services.metrics-server.enable` | `false` | Bootstrap metrics-server, serving the Metrics API |
 | `services.metrics-server.{replicas,metricResolution,extraArgs,nodeNames,package,image}` | derived | metrics-server tuning |
 | `services.<name>.machines` | from each machine's `role` | Which machines run this service |
