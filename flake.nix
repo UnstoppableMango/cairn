@@ -101,7 +101,7 @@
         };
 
         perSystem =
-          { pkgs, ... }:
+          { pkgs, self', ... }:
           let
             # The services both VM tests boot.
             cairnModules = lib.getAttrs [
@@ -146,6 +146,7 @@
             checks.flake-module = import ./checks/flake-module.nix {
               inherit lib pkgs;
               inherit (inputs) clan-core nixpkgs kubepkgs;
+              inherit (self'.packages) cairn-upgrade;
               cairnModules = config.flake.clan.modules;
             };
 
@@ -176,6 +177,7 @@
             treefmt = {
               programs = {
                 nixfmt.enable = true;
+                gofmt.enable = true;
                 mdformat.enable = true;
                 yamlfmt.enable = true;
                 jsonfmt.enable = true;
