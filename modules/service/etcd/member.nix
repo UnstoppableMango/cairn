@@ -31,6 +31,15 @@ let
     lib.filter (n: n.ip != cfg.advertiseAddress) cfg.nodes
   );
 
+  # The text tools the scripts below call. systemd's default unit PATH has
+  # grep and coreutils but no awk, so a script that leant on it failed every
+  # parse and read a learner as already voting.
+  scriptTools = with pkgs; [
+    coreutils
+    gawk
+    gnugrep
+  ];
+
   # The units carry the credentials rather than the scripts, so the scripts
   # close over no clan vars. A var's path only resolves once `clan vars
   # generate` has run, and a script holding one cannot be built by an
@@ -39,8 +48,10 @@ let
   # `etcd-client-cert` is owned by `kubernetes` and readable by
   # `cluster.cairn.adminGroup`, while the etcd unit runs as `etcd`, so a unit
   # reading the key has to run as root.
+  #
+  # No `ETCDCTL_API`: etcdctl speaks only v3, and since 3.6 it warns about the
+  # variable as unrecognised on every call.
   etcdctlCredentials = {
-    ETCDCTL_API = "3";
     ETCDCTL_CACERT = pki.ca.cert;
     ETCDCTL_CERT = pki.certs."etcd-client-cert".cert;
     ETCDCTL_KEY = pki.certs."etcd-client-cert".key;
@@ -55,7 +66,7 @@ let
   # booting. A learner never counts toward quorum.
   autoJoinScript = pkgs.writeShellApplication {
     name = "etcd-autojoin";
-    runtimeInputs = cfg.tools;
+    runtimeInputs = cfg.tools ++ scriptTools;
     text = ''
       # An initialised data directory means this machine is already a member and
       # etcd rejoins on its own. Returning here without contacting anyone is
@@ -124,7 +135,7 @@ let
   # learner", so asking this machine's own etcd would retry forever.
   promoteScript = pkgs.writeShellApplication {
     name = "etcd-promote";
-    runtimeInputs = cfg.tools;
+    runtimeInputs = cfg.tools ++ scriptTools;
     text = ''
       export ETCDCTL_ENDPOINTS="$1"
 
@@ -155,7 +166,7 @@ let
   # refused by etcd itself (`--strict-reconfig-check`, on by default).
   removeScript = pkgs.writeShellApplication {
     name = "etcd-remove-members";
-    runtimeInputs = cfg.tools;
+    runtimeInputs = cfg.tools ++ scriptTools;
     text = ''
       export ETCDCTL_ENDPOINTS="$1"
       shift
