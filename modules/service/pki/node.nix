@@ -86,7 +86,13 @@ let
     mkGenerator
       {
         inherit (cert) share;
-        key.owner = cert.owner;
+        key = {
+          inherit (cert) owner;
+        }
+        // lib.optionalAttrs (cert.group != null) {
+          inherit (cert) group;
+          mode = "0440";
+        };
       }
       (
         if cert.override != null then
@@ -191,6 +197,11 @@ in
               owner = lib.mkOption {
                 type = lib.types.str;
                 description = "Owner of the private key file.";
+              };
+              group = lib.mkOption {
+                type = lib.types.nullOr lib.types.str;
+                default = null;
+                description = "Group allowed to read the private key file. `null` leaves it readable by its owner alone.";
               };
               share = lib.mkOption {
                 type = lib.types.bool;

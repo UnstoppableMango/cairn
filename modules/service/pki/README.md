@@ -4,7 +4,7 @@ Cluster-wide PKI for cairn. Provides the CA (via a clan vars prompt) and
 generic cfssl-based certificate generation machinery.
 
 Other services declare their own certificate needs under
-`cluster.cairn.pki.certs.<name>` (CN, SANs, cfssl profile, key owner); this
+`cluster.cairn.pki.certs.<name>` (CN, SANs, cfssl profile, key owner and an optional group allowed to read it); this
 service turns each entry into a
 `clan.core.vars.generators.<generatorPrefix>-<name>` that signs against the
 shared CA and resolves `cert`/`key` paths back onto the option.

@@ -90,6 +90,13 @@
 
       environment.systemPackages = [ pkgs.openssl ];
 
+      # A wheel member, the default `cluster.cairn.adminGroup`, for checking
+      # that etcdctl and kubectl work for someone other than root.
+      users.users.admin = {
+        isNormalUser = true;
+        extraGroups = [ "wheel" ];
+      };
+
       # The seeded images (coredns, metrics-server, the pause shim and this
       # test's own) land in containerd's store on the VM's writable disk. The
       # NixOS test default is small enough that kubelet's image garbage
@@ -110,6 +117,16 @@
 
     node1.wait_until_succeeds("kubectl get --raw=/healthz")
     node1.wait_until_succeeds("kubectl get nodes | grep -q ' Ready'")
+
+    # etcdctl and kubectl need no flags or environment: sudo resets the
+    # environment, and the admin user reaches the keys through its group.
+    # `--endpoints` has to work alongside the defaults, since etcdctl refuses
+    # a flag that duplicates an ETCDCTL_* variable.
+    node1.succeed("sudo -u admin etcdctl endpoint health")
+    node1.succeed("sudo -u admin etcdctl --endpoints=https://192.168.1.1:2379 member list")
+    node1.succeed("sudo -u admin kubectl get nodes")
+    node1.succeed("env -i HOME=/root /run/current-system/sw/bin/etcdctl endpoint health")
+    node1.succeed("env -i HOME=/root /run/current-system/sw/bin/kubectl get nodes")
 
     # The bundle pods trust verifies the apiserver under OpenSSL, which,
     # unlike Go, rejects a trust bundle that stops at an intermediate.

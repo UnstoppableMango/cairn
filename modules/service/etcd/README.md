@@ -14,6 +14,14 @@ with `etcdctl` and `etcdutl` on the member's PATH from the same set. A cluster
 that pins no minor follows nixpkgs' `pkgs.etcd`, and
 `cluster.cairn.etcd.package` overrides either.
 
+`etcdctl` works with no flags for root and for members of
+`cluster.cairn.adminGroup` (`wheel` by default), who can read the client key.
+It is wrapped to default `ETCDCTL_CACERT`, `ETCDCTL_CERT` and `ETCDCTL_KEY` to
+the client credentials, so `sudo`, which resets the environment, keeps them. The
+endpoint is left to etcdctl's own default, the local member over TLS, because
+etcdctl rejects `--endpoints` when `ETCDCTL_ENDPOINTS` is also set; pass
+`--endpoints` to reach another member.
+
 ## Joining a running cluster
 
 `initialClusterState = "existing"` tells etcd it is joining rather than

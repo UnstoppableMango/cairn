@@ -9,9 +9,23 @@ let
   cfg = config.cluster.cairn;
   pki = cfg.pki;
   kubeconfigPath = "/etc/kubernetes/admin.kubeconfig";
+
+  # `KUBECONFIG` below reaches login shells only; `sudo` resets it. The wrapper
+  # supplies it as a default, so a value already set still wins.
+  kubectl = pkgs.symlinkJoin {
+    name = "kubectl-admin";
+    paths = [ cfg.kubeconfig.kubectl ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/kubectl --set-default KUBECONFIG ${kubeconfigPath}
+    '';
+  };
 in
 {
-  imports = [ ../cluster.nix ];
+  imports = [
+    ../admin.nix
+    ../cluster.nix
+  ];
 
   options.cluster.cairn.kubeconfig.kubectl = lib.mkOption {
     type = lib.types.package;
@@ -26,10 +40,12 @@ in
       org = "system:masters";
       profile = "client";
       owner = "root";
+      group = cfg.adminGroup;
     };
 
     environment.etc."kubernetes/admin.kubeconfig" = {
-      mode = "0600";
+      mode = if cfg.adminGroup == null then "0600" else "0640";
+      group = lib.mkIf (cfg.adminGroup != null) cfg.adminGroup;
       text = cairnLib.kubeconfig.mkKubeconfig {
         ca = pki.ca.cert;
         server = cfg.apiServerURL;
@@ -40,7 +56,7 @@ in
       };
     };
 
-    environment.systemPackages = [ cfg.kubeconfig.kubectl ];
+    environment.systemPackages = [ kubectl ];
 
     environment.variables.KUBECONFIG = kubeconfigPath;
   };

@@ -285,7 +285,7 @@ clan machines update cp1
 ## Verify
 
 SSH into any machine that has the `kubeconfig` service (all five, by default) and run `kubectl`.
-The service already sets `KUBECONFIG` and installs `kubectl`:
+The service installs `kubectl` already pointed at the admin kubeconfig, for root and for members of `wheel` (`cluster.cairn.adminGroup`):
 
 ```sh
 ssh root@10.10.0.11
