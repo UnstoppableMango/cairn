@@ -96,6 +96,25 @@ A pod that runs its own container runtime (dind, podman, buildkitd) needs that t
 Pair it with `hostUsers: false`, so runc delegates the pod's cgroup to the user namespace's root.
 Without a user namespace, root in the pod is root on the node.
 
+## Nix store images
+
+`nixSnapshotter` (default `false`) runs [nix-snapshotter](https://github.com/pdtpartners/nix-snapshotter) as the node's containerd snapshotter and the kubelet's image service.
+A pod can then name an image as `nix:0/nix/store/...`, and its store paths come straight from the node's nix store instead of being pulled and unpacked.
+Registry images keep working through nix-snapshotter's embedded overlay snapshotter.
+
+The cluster option `services.kubelet.nixSnapshotter` sets it for every kubelet machine, and `machines.<name>.nixSnapshotter` overrides it for one.
+Switching a node discards the images and container snapshots containerd holds under its old snapshotter, so drain each node before switching it.
+
+Two things a workload needs, both covered by the `nix-snapshotter` VM test:
+
+- In a `hostUsers: false` pod, every volume's mount point has to exist in the image.
+  The root filesystem belongs to the host's root there, so runc cannot create a missing one.
+- An idmapped hostPath mount of the node's `/nix/store`, for builds through the node's daemon, needs a filesystem that supports idmapping, such as ext4.
+  virtiofs does not.
+
+The module declares the `remap-ids` capability on containerd's `nix` proxy plugin, which nix-snapshotter does not advertise itself.
+Without it, containerd chowns the whole snapshot for a user-namespaced pod, which fails on the read-only store bind mounts.
+
 ## Kubernetes version
 
 The role accepts `kubernetesVersion`, a kubepkgs minor such as `"1.36"`.

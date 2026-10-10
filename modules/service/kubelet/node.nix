@@ -10,6 +10,7 @@ in
 {
   imports = [
     ./common.nix
+    ./nix-snapshotter.nix
     ../cluster.nix
   ];
 

@@ -295,6 +295,30 @@ let
         ok "worker1" && ok "cp1";
     }
     {
+      # Per machine: worker2 opts in and worker1 keeps containerd's default.
+      msg = "nix-snapshotter reaches only the machines that enable it";
+      cond =
+        let
+          nodeOf = m: consumer.config.nixosConfigurations.${m}.config;
+          snapshotterOf =
+            m:
+            (nodeOf m)
+            .virtualisation.containerd.settings.plugins."io.containerd.grpc.v1.cri".containerd.snapshotter
+              or null;
+          imageService =
+            m: lib.hasInfix "--image-service-endpoint" (nodeOf m).services.kubernetes.kubelet.extraOpts;
+        in
+        snapshotterOf "worker2" == "nix"
+        &&
+          (nodeOf "worker2").virtualisation.containerd.settings.proxy_plugins.nix.capabilities == [
+            "remap-ids"
+          ]
+        && imageService "worker2"
+        && (nodeOf "worker2").systemd.services.nix-snapshotter.enable
+        && snapshotterOf "worker1" != "nix"
+        && !(imageService "worker1");
+    }
+    {
       msg = "per-machine keepalived priorities survive the lowering";
       cond =
         (settingsOf "loadbalancer" "control-plane" "cp1").keepalivedPriority == 150

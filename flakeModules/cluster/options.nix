@@ -199,6 +199,20 @@ let
           '';
         };
 
+        nixSnapshotter = mkOption {
+          type = types.nullOr types.bool;
+          default = null;
+          description = ''
+            Run nix-snapshotter on this machine's kubelet, overriding the
+            cluster's `services.kubelet.nixSnapshotter`. `null` takes the
+            cluster value.
+
+            Set it per machine to move nodes over one at a time, draining
+            each first: switching snapshotters discards the images and
+            container snapshots containerd already holds.
+          '';
+        };
+
         schedulable = mkOption {
           type = types.bool;
           default = false;
@@ -442,6 +456,19 @@ let
               Hard eviction thresholds, for machines that do not set
               `machines.<name>.evictionHard`. The memory threshold also
               subtracts from allocatable.
+            '';
+          };
+
+          nixSnapshotter = mkOption {
+            type = types.bool;
+            default = false;
+            description = ''
+              Run nix-snapshotter as the containerd snapshotter and image
+              service on kubelet machines that do not set
+              `machines.<name>.nixSnapshotter`, so pods can run
+              `nix:0/nix/store/...` images off the node's nix store.
+              Registry images keep working through its embedded overlay
+              snapshotter.
             '';
           };
 
