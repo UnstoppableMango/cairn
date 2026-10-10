@@ -334,7 +334,14 @@ in
       description = "Promote this etcd learner to a voting member";
       after = [ "etcd.service" ];
       requires = [ "etcd.service" ];
-      wantedBy = [ "multi-user.target" ];
+      # Wanted by etcd as well as the boot target. A joining member's first
+      # start can time out while it fetches the snapshot, which fails this
+      # job's dependency for good; etcd's restart then comes up healthy and,
+      # without this, nothing ever queues the promotion again.
+      wantedBy = [
+        "multi-user.target"
+        "etcd.service"
+      ];
       environment = etcdctlCredentials;
       serviceConfig = {
         Type = "oneshot";
@@ -361,7 +368,11 @@ in
       description = "Remove departed members from the etcd cluster";
       after = [ "etcd.service" ];
       requires = [ "etcd.service" ];
-      wantedBy = [ "multi-user.target" ];
+      # Wanted by etcd too, for the same reason as the promote unit.
+      wantedBy = [
+        "multi-user.target"
+        "etcd.service"
+      ];
       environment = etcdctlCredentials;
       serviceConfig = {
         Type = "oneshot";
