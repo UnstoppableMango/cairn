@@ -117,15 +117,16 @@ let
   # Promotes the learner once its log has caught up. etcd rejects the promotion
   # until then, so failing and letting systemd retry is the whole mechanism.
   #
-  # Both calls go to the other members, which the unit names in
-  # `ETCDCTL_ENDPOINTS`. A learner answers only `Status` and serializable
-  # reads, refusing `MemberList` and `MemberPromote` alike with "rpc not
-  # supported for learner", so asking this machine's own etcd would retry
-  # forever.
+  # Both calls go to the other members, whose client URLs the unit passes as
+  # the first argument. A learner answers only `Status` and serializable reads,
+  # refusing `MemberList` and `MemberPromote` alike with "rpc not supported for
+  # learner", so asking this machine's own etcd would retry forever.
   promoteScript = pkgs.writeShellApplication {
     name = "etcd-promote";
     runtimeInputs = cfg.tools;
     text = ''
+      export ETCDCTL_ENDPOINTS="$1"
+
       line=$(etcdctl member list | grep -F ${lib.escapeShellArg selfPeerUrl} || true)
 
       if [ -z "$line" ]; then
@@ -261,12 +262,12 @@ in
       after = [ "etcd.service" ];
       requires = [ "etcd.service" ];
       wantedBy = [ "multi-user.target" ];
-      environment = etcdctlCredentials // {
-        ETCDCTL_ENDPOINTS = joinEndpoints;
-      };
+      environment = etcdctlCredentials;
       serviceConfig = {
         Type = "oneshot";
-        ExecStart = lib.getExe promoteScript;
+        # An argument rather than an `environment` entry, so an evaluation-only
+        # check can read it: `environment` also carries the clan var paths.
+        ExecStart = "${lib.getExe promoteScript} ${lib.escapeShellArg joinEndpoints}";
         # etcd rejects the promotion until the learner has caught up, so the
         # retry is the mechanism rather than a failure path. A separate unit
         # runs as root already and needs no `+`.

@@ -138,13 +138,14 @@ let
     # go to the other members and never to this machine's own etcd.
     promoteViaPeers =
       let
-        endpoints = join1.systemd.services.etcd-promote.environment.ETCDCTL_ENDPOINTS;
-        self = "https://${join1.cluster.cairn.etcd.advertiseAddress}:2379";
+        execStart = join1.systemd.services.etcd-promote.serviceConfig.ExecStart;
+        peer = "https://${newIp}:2379";
+        self = "https://${joinIp}:2379";
       in
-      assert endpoints != "";
-      assert !(lib.hasInfix "127.0.0.1" endpoints);
-      assert !(lib.hasInfix self endpoints);
-      endpoints;
+      assert lib.hasInfix peer execStart;
+      assert !(lib.hasInfix "127.0.0.1" execStart);
+      assert !(lib.hasInfix self execStart);
+      execStart;
 
     # A `new` cluster gets no hook, and neither does the default.
     newClusterUntouched =
