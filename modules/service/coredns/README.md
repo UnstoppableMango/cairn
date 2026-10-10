@@ -10,5 +10,7 @@ The role accepts `kubernetesVersion`, a kubepkgs minor such as `"1.36"`. kubeadm
 
 `nodeNames` defaults to the machines assigned this role, which is right while those machines are the ones running kubelets. Name the nodes outright when they are not.
 
+Each machine that seeds the image also labels its node `cairn/coredns-image=<tag>` through inoculant, and the Deployment requires that label alongside `nodeNames`. While control-plane machines are redeployed one at a time, new pods therefore only land on nodes that already have the new image (#103). A name in `nodeNames` that is not assigned this role never seeds the image, so no pod schedules there.
+
 Requires [inoculant](../inoculant) and [kubeconfig](../kubeconfig) assigned
 to the same machine.

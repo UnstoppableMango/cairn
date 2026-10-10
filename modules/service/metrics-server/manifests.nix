@@ -9,6 +9,8 @@
 let
   ports = import ./ports.nix;
 
+  seededImage = import ../seeded-image.nix;
+
   labels = {
     k8s-app = "metrics-server";
   };
@@ -172,18 +174,9 @@ in
           serviceAccountName = "metrics-server";
           priorityClassName = "system-cluster-critical";
           # Same node-pinning rationale as coredns: the image is seeded onto
-          # these machines only, so the pod has to land on one of them.
-          affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms = [
-            {
-              matchExpressions = [
-                {
-                  key = "kubernetes.io/hostname";
-                  operator = "In";
-                  values = nodeNames;
-                }
-              ];
-            }
-          ];
+          # these machines only, so the pod has to land on one of them that
+          # already has this build of it.
+          affinity = seededImage.affinity "metrics-server" image nodeNames;
           tolerations = [
             {
               key = "node-role.kubernetes.io/master";

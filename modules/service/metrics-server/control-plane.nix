@@ -10,6 +10,8 @@ let
 
   release = import ../releases.nix { inherit kubepkgs; };
 
+  seededImage = import ../seeded-image.nix;
+
   v = config.cluster.cairn.kubernetesVersion;
 
   # nixpkgs ships no metrics-server, so the package always comes from
@@ -91,6 +93,12 @@ in
 
     services.kubernetes.inoculant = {
       enable = true;
+
+      # Advertises the seeded tag where the image is seeded, which the
+      # Deployment's node affinity requires; see ../seeded-image.nix.
+      nodeLabels = lib.mkIf config.services.kubernetes.kubelet.enable {
+        ${seededImage.label "metrics-server"} = cfg.image.imageTag;
+      };
 
       # inoculant scopes its own RBAC to the kinds it finds in `manifests`,
       # and RBAC keys the "bind" check on the referenced role's resource
