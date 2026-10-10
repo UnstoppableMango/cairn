@@ -273,7 +273,9 @@ let
 
         (instance (svc.coredns.enable && svc.coredns.machines != [ ]) "${prefix}coredns" {
           module = mkModule "coredns";
-          roles.control-plane = mkRole svc.coredns "coredns" svc.coredns.machines (_: { });
+          roles.control-plane = mkRole svc.coredns "coredns" svc.coredns.machines (
+            m: optionalAttrs (effectiveVersion m != null) { kubernetesVersion = effectiveVersion m; }
+          );
         })
 
         (instance (svc.metrics-server.enable && svc.metrics-server.machines != [ ])
@@ -328,6 +330,7 @@ let
   }
   // optionalAttrs (svc.coredns.clusterIp != null) { inherit (svc.coredns) clusterIp; }
   // optionalAttrs (svc.coredns.corefile != null) { inherit (svc.coredns) corefile; }
+  // optionalAttrs (svc.coredns.package != null) { inherit (svc.coredns) package; }
   // optionalAttrs (svc.coredns.image != null) { inherit (svc.coredns) image; };
 
   metricsServerConfig = {

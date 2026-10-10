@@ -637,10 +637,16 @@ let
             description = "Corefile contents. `null` keeps the service's own default Corefile.";
           };
 
+          package = mkOption {
+            type = types.nullOr types.package;
+            default = null;
+            description = "CoreDNS build the image is made from. `null` takes the cluster's pinned kubepkgs minor, or nixpkgs' `pkgs.coredns` when nothing is pinned.";
+          };
+
           image = mkOption {
             type = types.nullOr types.package;
             default = null;
-            description = "Docker image seeded for the CoreDNS container. `null` keeps the service's own nixpkgs-built image.";
+            description = "Docker image seeded for the CoreDNS container. `null` keeps the service's own image, built from `package`.";
           };
         };
 

@@ -81,6 +81,8 @@ Declared in `flakeModules/cluster/options.nix` and threaded through `flakeModule
 - `cairn.clusters.<name>.versions.etcdPackage` (`nullOr package`): overrides the etcd server the minor selects, for pinning etcd independently of the Kubernetes version.
   Members otherwise run the pinned minor's etcd from kubepkgs' `deps` roster, and `etcdctl`/`etcdutl` on their PATH come from the same place.
   Unpinned clusters still follow nixpkgs' `pkgs.etcd`, which carries all three binaries in one package.
+- CoreDNS follows the same pin: kubeadm ties a CoreDNS version to each minor, so the image is built from the minor's `deps.coredns`.
+  `services.coredns.package` overrides it, and unpinned clusters follow nixpkgs' `pkgs.coredns`.
 
 Consumers hand-writing an inventory get the same knobs as service settings, per the usual two-file rule for the option tree.
 
