@@ -69,9 +69,7 @@ cairn takes `kubepkgs` as a flake input, injected into the services via `importA
 kubepkgs ships each supported Kubernetes minor as a package set of individually built components: `kubectl`, `kubeadm`, `kubelet`, `kube-apiserver`, `kube-controller-manager`, `kube-scheduler`, and `kube-proxy`, plus SIG projects and a `deps` roster carrying `etcd`, `etcdctl` and `etcdutl`, all pinned in `packages.json`.
 
 The nixpkgs `services.kubernetes` module takes a single combined package (`services.kubernetes.package`) and expects every component under its `bin/`, plus a `pause` passthru derivation that `kubelet.nix` wraps into the sandbox image.
-The lowering therefore builds a `symlinkJoin` of the kubepkgs components for the selected minor and attaches `passthru.pause`.
-The pause shim is a tiny version-insensitive C binary, so reusing `pkgs.kubernetes.pause` from nixpkgs is correct until kubepkgs grows a `pause` package ([kubepkgs#33](https://github.com/unmango/kubepkgs/issues/33), cairn [#77](https://github.com/UnstoppableMango/cairn/issues/77)).
-`bin/kube-addons` is referenced only by the addon manager, which cairn disables, so the joined package does not need it.
+kubepkgs ships exactly that shape per minor as `kubernetes`, a `symlinkJoin` of the core binaries with its own `pause` as the passthru, and the kubelet service sets it directly, so a pinned machine's Kubernetes closure comes entirely from kubepkgs.
 
 ### Options
 

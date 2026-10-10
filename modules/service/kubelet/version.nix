@@ -4,9 +4,9 @@
 # scheduler, proxy and kubelet all from one combined package, so setting it
 # here (the kubelet service reaches every machine) moves the whole machine at
 # once, the same shape as upgrading a kubeadm node. kubepkgs ships one
-# derivation per component instead, hence the symlinkJoin. The `pause`
-# passthru is what `kubelet.nix` wraps into the sandbox image; the shim is
-# version-insensitive, so nixpkgs' copy serves every minor (#77).
+# derivation per component, and joins them into `kubernetes` in exactly that
+# combined shape, with the `pause` passthru `kubelet.nix` wraps into the
+# sandbox image. The whole closure therefore comes from kubepkgs.
 { kubepkgs }:
 {
   config,
@@ -21,21 +21,11 @@ in
 {
   imports = [ ../version.nix ];
 
-  config = lib.mkIf (v != null) (
-    let
-      components = release {
+  config = lib.mkIf (v != null) {
+    services.kubernetes.package =
+      (release {
         inherit lib pkgs;
         version = v;
-      };
-    in
-    {
-      services.kubernetes.package = pkgs.symlinkJoin {
-        name = "kubernetes-${components.kubelet.version}";
-        # The per-minor set carries the `sigs` and `deps` rosters alongside
-        # the core binaries; only the binaries belong in the join.
-        paths = lib.filter lib.isDerivation (lib.attrValues components);
-        passthru.pause = pkgs.kubernetes.pause;
-      };
-    }
-  );
+      }).kubernetes;
+  };
 }
