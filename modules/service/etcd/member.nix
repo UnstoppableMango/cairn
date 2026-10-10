@@ -36,8 +36,9 @@ let
   # generate` has run, and a script holding one cannot be built by an
   # evaluation-only check (see checks/etcd-autojoin.nix).
   #
-  # `etcd-client-cert` is owned by `kubernetes` while the etcd unit runs as
-  # `etcd`, so whatever reads the key has to be root.
+  # `etcd-client-cert` is owned by `kubernetes` and readable by
+  # `cluster.cairn.adminGroup`, while the etcd unit runs as `etcd`, so a unit
+  # reading the key has to run as root.
   etcdctlCredentials = {
     ETCDCTL_API = "3";
     ETCDCTL_CACERT = pki.ca.cert;
@@ -181,6 +182,24 @@ let
   removedButListed = lib.intersectLists cfg.removedMembers (map (n: n.name) cfg.nodes);
 
   autoJoinEnabled = cfg.autoJoin && cfg.initialClusterState == "existing";
+
+  # etcdctl with the client credentials as defaults rather than as global
+  # environment variables, which `sudo` resets and a non-login shell never
+  # reads. Defaults only: a variable already set wins. The endpoint is left to
+  # etcdctl's own default, 127.0.0.1:2379, which it dials over TLS once a
+  # client cert is set, because etcdctl refuses an `--endpoints` flag
+  # alongside an `ETCDCTL_ENDPOINTS` variable.
+  etcdctl = pkgs.symlinkJoin {
+    name = "etcd-tools";
+    paths = cfg.tools;
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/etcdctl \
+        --set-default ETCDCTL_CACERT ${lib.escapeShellArg pki.ca.cert} \
+        --set-default ETCDCTL_CERT ${lib.escapeShellArg pki.certs."etcd-client-cert".cert} \
+        --set-default ETCDCTL_KEY ${lib.escapeShellArg pki.certs."etcd-client-cert".key}
+    '';
+  };
 in
 {
   imports = [
@@ -369,13 +388,6 @@ in
       2380
     ];
 
-    environment.systemPackages = cfg.tools;
-
-    environment.variables = {
-      ETCDCTL_ENDPOINTS = "https://127.0.0.1:2379";
-      ETCDCTL_CACERT = pki.ca.cert;
-      ETCDCTL_CERT = pki.certs."etcd-client-cert".cert;
-      ETCDCTL_KEY = pki.certs."etcd-client-cert".key;
-    };
+    environment.systemPackages = [ etcdctl ];
   };
 }

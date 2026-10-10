@@ -2,10 +2,14 @@
 # it. The apiserver dials etcd with it, and etcd's own `etcdctl` uses it, so
 # it belongs to neither service alone. It is shared cluster-wide, so every
 # machine importing this gets the same material.
+{ config, ... }:
 {
+  imports = [ ./admin.nix ];
+
   cluster.cairn.pki.certs.etcd-client-cert = {
     cn = "kube-apiserver-etcd-client";
     profile = "client";
     owner = "kubernetes";
+    group = config.cluster.cairn.adminGroup;
   };
 }
