@@ -90,9 +90,6 @@ in
           timeout server 1h
           timeout tunnel 1h
           timeout check 2s
-          # A connection that fails to reach its backend is retried on a
-          # different one (`redispatch 1`: every retry, not only the last), so
-          # a dead backend costs one connect timeout instead of a failure.
           retries 2
           option redispatch 1
 
