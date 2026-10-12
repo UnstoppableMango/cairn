@@ -118,8 +118,8 @@ Without it, containerd chowns the whole snapshot for a user-namespaced pod, whic
 ## Kubernetes version
 
 The role accepts `kubernetesVersion`, a kubepkgs minor such as `"1.36"`.
-It sets `services.kubernetes.package` to a join of kubepkgs' per-component
-binaries for that minor, moving every Kubernetes component on the machine
+It sets `services.kubernetes.package` to kubepkgs' combined `kubernetes`
+package for that minor, pause shim included, moving every Kubernetes component on the machine
 together; the apiserver, controller-manager, scheduler and proxy all run
 from the same package. `null` (the default) follows nixpkgs'
 `pkgs.kubernetes`. The kubelet service carries this setting because it is

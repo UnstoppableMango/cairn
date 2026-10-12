@@ -1,3 +1,4 @@
+{ kubepkgs }:
 {
   config,
   lib,
@@ -8,8 +9,14 @@ let
   cfg = config.cluster.cairn.coredns;
 
   ports = import ./ports.nix;
+
+  release = import ../releases.nix { inherit kubepkgs; };
+
+  v = config.cluster.cairn.kubernetesVersion;
 in
 {
+  imports = [ ../version.nix ];
+
   options.cluster.cairn.coredns = {
     nodeNames = lib.mkOption {
       type = lib.types.listOf lib.types.str;
@@ -73,12 +80,31 @@ in
       description = "CoreDNS Corefile contents.";
     };
 
+    # kubeadm ties a CoreDNS version to each Kubernetes minor, so a pinned
+    # cluster takes that minor's CoreDNS from kubepkgs rather than whatever
+    # nixpkgs is locked to. Unpinned, it follows nixpkgs like the rest of the
+    # machine.
+    package = lib.mkOption {
+      type = lib.types.package;
+      default =
+        if v != null then
+          (release {
+            inherit lib pkgs;
+            version = v;
+          }).deps.coredns
+        else
+          pkgs.coredns;
+      defaultText = lib.literalMD "CoreDNS from the cluster's pinned kubepkgs minor, or `pkgs.coredns` when nothing is pinned";
+      description = "CoreDNS build the container image is made from.";
+    };
+
     image = lib.mkOption {
       type = lib.types.package;
       default = pkgs.dockerTools.buildImage {
         name = "coredns";
-        config.Entrypoint = [ "${pkgs.coredns}/bin/coredns" ];
+        config.Entrypoint = [ "${cfg.package}/bin/coredns" ];
       };
+      defaultText = lib.literalMD "an image wrapping `package`";
       description = "Docker image seeded for the CoreDNS container.";
     };
   };

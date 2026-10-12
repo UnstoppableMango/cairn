@@ -37,7 +37,9 @@ in
   modules."@UnstoppableMango/inoculant" = importApply ./modules/service/inoculant {
     inherit inoculant;
   };
-  modules."@UnstoppableMango/coredns" = import ./modules/service/coredns;
+  modules."@UnstoppableMango/coredns" = importApply ./modules/service/coredns {
+    inherit cairnLib kubepkgs;
+  };
   modules."@UnstoppableMango/metrics-server" = importApply ./modules/service/metrics-server {
     inherit cairnLib kubepkgs;
   };

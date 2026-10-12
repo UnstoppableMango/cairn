@@ -389,6 +389,13 @@ let
           ];
     }
     {
+      # kubeadm ties CoreDNS to the minor, so cluster DNS moves with the pin
+      # instead of following nixpkgs.
+      msg = "the pinned minor supplies the CoreDNS image";
+      cond =
+        consumer.config.nixosConfigurations.cp1.config.cluster.cairn.coredns.package == pinned.deps.coredns;
+    }
+    {
       msg = "apiserver health checking reaches the loadbalancer and defaults on";
       cond = (settingsOf "loadbalancer" "control-plane" "cp1").healthCheck.enable;
     }

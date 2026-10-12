@@ -2,7 +2,9 @@
 
 Optional CoreDNS bootstrap via inoculant.
 Manifests (ServiceAccount, `system:coredns` ClusterRole/ClusterRoleBinding, ConfigMap, Deployment, Service) are hand-authored in `./manifests.nix` rather than harvested from nixpkgs' `addonManager`/`addons.dns` modules, which cairn otherwise leaves disabled.
-The CoreDNS container image is built directly from `pkgs.coredns` and seeded onto the assigned machines that run a kubelet; the Deployment is pinned to `nodeNames` via node affinity and matching tolerations.
+The CoreDNS container image is built from `package` and seeded onto the assigned machines that run a kubelet; the Deployment is pinned to `nodeNames` via node affinity and matching tolerations.
+
+The role accepts `kubernetesVersion`, a kubepkgs minor such as `"1.36"`. kubeadm ties a CoreDNS version to each Kubernetes minor, so a pinned role takes that minor's CoreDNS from kubepkgs (`kubernetes.<minor>.deps.coredns`); `null` (the default) follows nixpkgs' `pkgs.coredns`. The `cairn.clusters` option tree sets it from the cluster's pin.
 
 `clusterIp` derives from `serviceClusterIpRange`, which defaults to nixpkgs' own apiserver default of `10.0.0.0/24`. Set it here alongside the apiserver's range rather than on its own; the machine bootstrapping the manifests need not be running an apiserver to read it from.
 
