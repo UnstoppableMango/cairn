@@ -32,6 +32,12 @@ let
       "option tcp-check";
 
   serverFlags = "check" + lib.optionalString hc.enable " check-ssl verify none";
+
+  # How fast HAProxy notices a backend is gone. Its defaults (a 2s interval,
+  # three failures, and a check bounded only by `timeout connect`) leave a
+  # powered-off apiserver in rotation for up to ~20s, and every new connection
+  # round-robined onto it hangs for the whole connect timeout before failing.
+  defaultServer = "inter 2s fall 2 rise 2";
 in
 {
   imports = [ ../cluster.nix ];
@@ -83,6 +89,9 @@ in
           timeout client 1h
           timeout server 1h
           timeout tunnel 1h
+          timeout check 2s
+          retries 2
+          option redispatch 1
 
         frontend k8s-api
           bind *:${toString cluster.apiServerPort}
@@ -91,6 +100,7 @@ in
         backend k8s-api-backend
           balance roundrobin
           ${backendCheck}
+          default-server ${defaultServer}
           ${lib.concatMapStringsSep "\n          " (
             backend: "server ${backend} ${backend} ${serverFlags}"
           ) backends}

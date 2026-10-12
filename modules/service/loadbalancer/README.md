@@ -15,7 +15,10 @@ With `healthCheck.enable` (the default), readiness drives both layers rather
 than reachability:
 
 - HAProxy probes each backend's `/readyz` over TLS (`option httpchk`) and
-  takes an unready apiserver out of rotation.
+  takes an unready apiserver out of rotation after two failed probes 2s
+  apart, each bounded at 2s. Until then, a connection that cannot reach its
+  backend is retried and redispatched to another one, so a machine that
+  drops off the network costs clients a retry rather than a failed request.
 - keepalived runs a track script against the local apiserver's `/readyz` and
   subtracts `healthCheck.weight` (default 60) from the VRRP priority while it
   fails, so the VIP moves off a machine whose apiserver is down, not only one
