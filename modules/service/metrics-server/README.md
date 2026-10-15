@@ -16,6 +16,11 @@ kubelet; the Deployment is pinned to `nodeNames` via node affinity and
 matching tolerations. nixpkgs ships no metrics-server, so a cluster that pins
 no minor takes kubepkgs' newest.
 
+As with [coredns](../coredns), each seeding machine labels its node
+`cairn/metrics-server-image=<tag>` through inoculant, and the Deployment
+requires that label, so a partial control-plane rollout never schedules a pod
+onto a node without the image.
+
 Scrapes kubelets over TLS verified against the cluster CA, which the pod
 mounts off the node, with `--kubelet-preferred-address-types=InternalIP`
 because the kubelet serving cert's only SAN is the machine's advertise

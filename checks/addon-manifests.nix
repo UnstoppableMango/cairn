@@ -8,6 +8,8 @@
 # the VM test cannot reach and the option-tree check does not force.
 { pkgs, lib }:
 let
+  seededImage = import ../modules/service/seeded-image.nix;
+
   metricsServer = import ../modules/service/metrics-server/manifests.nix {
     image = {
       imageName = "metrics-server";
@@ -72,6 +74,22 @@ let
     {
       msg = "the image is the seeded one, never pulled";
       cond = container.image == "metrics-server:0.7.2" && container.imagePullPolicy == "Never";
+    }
+    {
+      # #103: during a partial control-plane rollout only some nodes have
+      # the new tag, so the pod must require the label advertising it.
+      msg = "pods only schedule onto nodes that advertise the seeded image tag";
+      cond =
+        let
+          affinity = metricsServer.metrics-server-deployment.spec.template.spec.affinity;
+          terms = affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms;
+        in
+        lib.length terms == 1
+        && lib.elem {
+          key = seededImage.label "metrics-server";
+          operator = "In";
+          values = [ "0.7.2" ];
+        } (lib.head terms).matchExpressions;
     }
     {
       msg = "settings the option tree threads through reach the manifests";

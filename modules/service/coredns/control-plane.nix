@@ -13,6 +13,8 @@ let
   release = import ../releases.nix { inherit kubepkgs; };
 
   v = config.cluster.cairn.kubernetesVersion;
+
+  seededImage = import ../seeded-image.nix;
 in
 {
   imports = [ ../version.nix ];
@@ -122,6 +124,12 @@ in
 
     services.kubernetes.inoculant = {
       enable = true;
+
+      # Advertises the seeded tag where the image is seeded, which the
+      # Deployment's node affinity requires; see ../seeded-image.nix.
+      nodeLabels = lib.mkIf config.services.kubernetes.kubelet.enable {
+        ${seededImage.label "coredns"} = cfg.image.imageTag;
+      };
       manifests = import ./manifests.nix {
         inherit (cfg)
           clusterIp

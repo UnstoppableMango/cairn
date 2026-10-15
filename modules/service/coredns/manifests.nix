@@ -8,6 +8,8 @@
 let
   ports = import ./ports.nix;
 
+  seededImage = import ../seeded-image.nix;
+
   labels = {
     k8s-app = "kube-dns";
   };
@@ -112,17 +114,7 @@ in
         spec = {
           serviceAccountName = "coredns";
           dnsPolicy = "Default";
-          affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms = [
-            {
-              matchExpressions = [
-                {
-                  key = "kubernetes.io/hostname";
-                  operator = "In";
-                  values = nodeNames;
-                }
-              ];
-            }
-          ];
+          affinity = seededImage.affinity "coredns" image nodeNames;
           # nixpkgs' default toleration for "node-role.kubernetes.io/master" omits
           # operator/value, so it defaults to Equal against value "", which never
           # matches the master taint's value "true" (set by
