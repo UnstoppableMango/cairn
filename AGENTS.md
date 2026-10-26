@@ -85,3 +85,17 @@ Inside this repo's own examples/tests, `module.input = "self"` (cairn referencin
 ### Formatting
 
 `nix fmt` (treefmt) covers Nix (`nixfmt`), Go (`gofmt`), Markdown (`mdformat`, excluding `.agents/skills/**` and `.claude/skills/**`), YAML, JSON, and the Makefile (`mbake`). Run it before committing rather than hand-formatting these files.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in this repo's GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default triage labels, each named after its role (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
