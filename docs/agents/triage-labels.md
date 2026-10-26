@@ -12,4 +12,6 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
+`gh issue edit --add-label` fails on a label the repo does not have yet, so create a missing one first with `gh label create <name>`.
+
 Edit the right-hand column to match whatever vocabulary you actually use.
