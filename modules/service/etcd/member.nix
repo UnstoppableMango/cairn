@@ -306,6 +306,9 @@ in
     };
 
     services.etcd = {
+      # nixpkgs enables etcd only through the Kubernetes `master` role, which an
+      # etcd-only member does not have.
+      enable = true;
       inherit (cfg) package;
       # The inventory machine name is the machine's hostname, so this matches
       # the name this node is listed under in `initialCluster`.

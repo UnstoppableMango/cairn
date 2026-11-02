@@ -179,6 +179,15 @@ let
     # etcd still gets the shared client cert for its own etcdctl.
     etcdctl = (clientCertOn etcd1).cn;
 
+    # nixpkgs turns these on only through a Kubernetes role, which etcd1 does
+    # not have. Without the unit's ExecStart etcd never starts, and without
+    # the cert's owner sops-install-secrets installs no secret at all.
+    etcdOnlyMember =
+      assert etcd1.services.etcd.enable;
+      assert etcd1.systemd.services.etcd.serviceConfig ? ExecStart;
+      assert (clientCertOn etcd1).owner == "kubernetes";
+      etcd1.users.users.kubernetes.uid;
+
     # A loadbalancer machine with no apiserver runs no keepalived track
     # script: the probe would fail forever and permanently subtract the
     # script's weight from this machine's VRRP priority.
