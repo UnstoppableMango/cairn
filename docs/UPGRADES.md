@@ -237,7 +237,7 @@ It assumes Phase 0 has landed.
 kubepkgs' SIG packages are cairn addons delivered through inoculant, versioned in lockstep with the cluster minor ([#78](https://github.com/UnstoppableMango/cairn/issues/78)).
 `metrics-server` is implemented and `kube-state-metrics` follows the same shape.
 `external-dns` is not one of them: it depends on a DNS provider and belongs to Flux (`.out-of-scope/provider-specific-addons.md`).
-nixpkgs ships none of the provider-neutral ones, so an unpinned cluster takes kubepkgs' newest minor rather than falling back.
+nixpkgs ships no metrics-server, so an unpinned cluster takes kubepkgs' newest minor rather than falling back.
 
 ## Testing
 

@@ -5,8 +5,9 @@ They are delivered by Flux, which cairn already bootstraps, not by inoculant.
 
 ## Why this is out of scope
 
-cairn's addons (CoreDNS, metrics-server, kube-state-metrics, Flux itself) are things every cluster needs before GitOps takes over, and none of them need to know anything outside the cluster.
-inoculant delivers them from eval-time facts, and the cluster option tree can describe them completely.
+cairn's addons (CoreDNS, metrics-server, Flux itself, and kube-state-metrics once it lands) are provider-neutral bootstrap components.
+Each is opt-in, but none needs provider-specific configuration, so inoculant can deliver it from eval-time facts and the cluster option tree can describe it completely.
+Flux does reach outside the cluster, to a Git repository, but that is one URL and the point of bootstrapping it, not a provider integration.
 
 An addon like external-dns is the opposite on each count:
 
