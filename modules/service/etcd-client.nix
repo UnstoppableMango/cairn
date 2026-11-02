@@ -12,4 +12,12 @@
     owner = "kubernetes";
     group = config.cluster.cairn.adminGroup;
   };
+
+  # nixpkgs creates this account only on machines with a Kubernetes role, and
+  # sops-install-secrets rejects the whole manifest if an owner is missing.
+  users.users.kubernetes = {
+    uid = config.ids.uids.kubernetes;
+    group = "kubernetes";
+  };
+  users.groups.kubernetes.gid = config.ids.gids.kubernetes;
 }
