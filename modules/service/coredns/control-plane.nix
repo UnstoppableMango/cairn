@@ -82,10 +82,7 @@ in
       description = "CoreDNS Corefile contents.";
     };
 
-    # kubeadm ties a CoreDNS version to each Kubernetes minor, so a pinned
-    # cluster takes that minor's CoreDNS from kubepkgs rather than whatever
-    # nixpkgs is locked to. Unpinned, it follows nixpkgs like the rest of the
-    # machine.
+    # kubeadm ties a CoreDNS version to each Kubernetes minor, so a pinned cluster takes that minor's from kubepkgs.
     package = lib.mkOption {
       type = lib.types.package;
       default =
@@ -114,9 +111,6 @@ in
   config = {
     services.kubernetes.addons.dns.enable = false;
 
-    # Kubelet settings, so they only apply where a kubelet runs. A machine
-    # that only bootstraps the manifests has no image to seed and no kubelet
-    # to point at CoreDNS.
     services.kubernetes.kubelet = lib.mkIf config.services.kubernetes.kubelet.enable {
       seedDockerImages = [ cfg.image ];
       clusterDns = lib.mkDefault [ cfg.clusterIp ];
@@ -125,8 +119,6 @@ in
     services.kubernetes.inoculant = {
       enable = true;
 
-      # Advertises the seeded tag where the image is seeded, which the
-      # Deployment's node affinity requires; see ../seeded-image.nix.
       nodeLabels = lib.mkIf config.services.kubernetes.kubelet.enable {
         ${seededImage.label "coredns"} = cfg.image.imageTag;
       };

@@ -11,16 +11,9 @@ jobs:
       - uses: unmango/actions/setup-nix@e8bbcbd12a2c521c5cb36957c00a7a8f4fe2e766 # v2.0.0
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-          # A CLI --option can't turn this on for an untrusted user: the nix
-          # daemon silently ignores it unless the invoking user is in
-          # trusted-users, which the runner user isn't by default. Set it in
-          # the daemon's own nix.conf instead, scoped to this CI install only
-          # (the flake's own nixConfig stays IFD-agnostic for consumers).
+          # The daemon ignores a CLI --option from a user outside trusted-users, so this goes in its nix.conf.
           extra_nix_config: |
             allow-import-from-derivation = true
-      # ubuntu-latest (24.04) restricts unprivileged user namespaces via
-      # AppArmor by default, which breaks bubblewrap sandboxing (used by
-      # clan's vars generators): bwrap fails with "setting up uid map:
-      # Permission denied". Lift the restriction for this job only.
+      # Ubuntu 24.04's AppArmor blocks unprivileged user namespaces, which breaks bwrap in clan's vars generators.
       - run: sudo sysctl kernel.apparmor_restrict_unprivileged_userns=0
       - run: nix flake check --option allow-import-from-derivation true

@@ -2,14 +2,7 @@
   cairnModules,
   globset,
 }:
-# Whether pods can run straight off the node's nix store, through
-# nix-snapshotter, and build through the node's nix-daemon, on the same
-# one-node cluster the single-node-cluster test boots. It settles the open
-# questions before any real node adopts this: a user-namespaced pod
-# (hostUsers: false) on a nix-snapshotter image, since nix-snapshotter does
-# not advertise containerd's id-remapping capability; a sandboxed build from
-# that pod through the node daemon; and registry images, here the seeded
-# addon images, still running with nix-snapshotter as the snapshotter.
+# Settles what a real node needs before adopting nix-snapshotter: a user-namespaced pod on a nix-snapshotter image, which does not advertise containerd's id-remapping capability; a sandboxed build from that pod through the node daemon; and registry images still running under it.
 let
   base = import ../vm/default.nix { inherit cairnModules; };
 in
@@ -20,16 +13,11 @@ base
   nodes.node1 =
     { lib, pkgs, ... }:
     let
-      # nixpkgs' `nix-snapshotter.buildImage` passthru calls upstream's
-      # package.nix without the `globset` argument it requires, so it fails
-      # to evaluate. Call that package.nix here with it.
+      # nixpkgs' `nix-snapshotter.buildImage` passthru omits the `globset` argument upstream's package.nix requires, so it fails to evaluate.
       nix-snapshotter = pkgs.callPackage "${pkgs.nix-snapshotter.src}/package.nix" {
         inherit globset;
       };
 
-      # Resolved by nix: the image is a store path whose layers name store
-      # paths, which nix-snapshotter bind-mounts from the node's store rather
-      # than unpacking.
       image = nix-snapshotter.buildImage {
         name = "store-probe";
         resolvedByNix = true;
@@ -42,9 +30,7 @@ base
             ];
             pathsToLink = [ "/bin" ];
           })
-          # Every volume's mount point, present in the image. In a
-          # user-namespaced pod the root filesystem belongs to the host's root,
-          # so runc cannot create a missing one.
+          # In a user-namespaced pod the root filesystem belongs to the host's root, so runc cannot create a missing mount point.
           (pkgs.runCommand "store-probe-mountpoints" { } ''
             mkdir -p $out/tmp $out/nix/var/nix/daemon-socket \
               $out/var/run/secrets/kubernetes.io/serviceaccount
@@ -83,9 +69,7 @@ base
           }
         );
 
-      # The node's whole store, read-only, so a path the daemon builds is
-      # visible to the pod, and the daemon's socket. The emptyDir /tmp is
-      # HOME, for nix's cache.
+      # The whole store, so a path the daemon builds is visible to the pod; /tmp is HOME, for nix's cache.
       nodeStore = {
         volumes = [
           {
@@ -136,7 +120,6 @@ base
         };
       };
 
-      # Fails outside a sandbox: a sandboxed builder sees no /var/lib.
       probeDrv = pkgs.writeText "sandbox-probe.nix" ''
         derivation {
           name = "sandbox-probe";
@@ -149,8 +132,6 @@ base
     {
       imports = [ base.nodes.node1 ];
 
-      # The kubelet service's own switch: nix-snapshotter as containerd's
-      # snapshotter and the kubelet's image service.
       cluster.cairn.kubelet.nixSnapshotter.enable = true;
 
       environment.etc = {
@@ -159,33 +140,22 @@ base
         "nix-snapshotter-test/sandbox-probe.nix".source = probeDrv;
       };
 
-      # The derivation's builder is the sandbox's /bin/sh, so the build needs
-      # nothing fetched: the VM has no network to fetch from.
+      # The builder is the sandbox's /bin/sh, since the VM has no network to fetch from.
       virtualisation.additionalPaths = [ pkgs.busybox-sandbox-shell ];
 
-      # A user-namespaced pod gets its volumes idmapped, and the default VM
-      # store is the host's, shared over virtiofs, which refuses
-      # MOUNT_ATTR_IDMAP. A disk image puts the store on ext4, as on a real
-      # node.
+      # Idmapped volumes need a real filesystem: the default VM store is virtiofs, which refuses MOUNT_ATTR_IDMAP.
       virtualisation.useBootLoader = true;
-      # The disk image's filesystem is built just big enough for the store
-      # closure, with nothing to spare for containerd's images or etcd. A
-      # larger virtual disk, and the partition and ext4 grown into it at boot,
-      # give them room. The image is sparse.
+      # The image's filesystem fits only the store closure, so it is grown into a larger sparse disk at boot for containerd's images and etcd.
       virtualisation.diskSize = lib.mkForce 20480;
       boot.growPartition = true;
-      # Not `fileSystems`: the VM module replaces that with its own
-      # virtualisation.fileSystems through mkVMOverride.
+      # Not `fileSystems`, which the VM module replaces through mkVMOverride.
       virtualisation.fileSystems."/".autoResize = true;
     };
 
   testScript = ''
-    # Each wait gets 300s rather than the 900s default, and a failure prints
-    # what the cluster was doing, so a broken run explains itself near the end
-    # of the log instead of in a grep of the kubelet journal.
+    # 300s rather than 900s, and a failure prints the cluster's state, so a broken run explains itself at the end of the log.
     TIMEOUT = 300
     UNITS = ["etcd", "kube-apiserver", "kubelet", "containerd", "nix-snapshotter"]
-
 
     def diagnose(pod=None):
         for unit in UNITS:
@@ -197,7 +167,6 @@ base
             print(f"--- pod {pod}")
             print(node1.execute(f"kubectl describe pod {pod}")[1])
 
-
     def step(action, pod=None):
         try:
             return action()
@@ -205,10 +174,8 @@ base
             diagnose(pod)
             raise
 
-
     def wait(command, pod=None):
         return step(lambda: node1.wait_until_succeeds(command, timeout=TIMEOUT), pod)
-
 
     start_all()
 
@@ -216,30 +183,23 @@ base
     step(lambda: node1.wait_for_unit("kubelet.service", timeout=TIMEOUT))
     wait("kubectl get nodes | grep -q ' Ready'")
 
-    # Registry-style images still run: the seeded coredns image goes through
-    # nix-snapshotter's embedded overlay snapshotter.
     wait(
         "kubectl -n kube-system get deployment coredns"
         " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
     )
 
-    # A nix:0 image, resolved from the node's store. Retrying the apply covers
-    # the same default-ServiceAccount race the other test has.
+    # Retrying covers the default-ServiceAccount race.
     wait("kubectl apply -f /etc/nix-snapshotter-test/plain.json")
     wait("kubectl get pod plain -o jsonpath='{.status.phase}' | grep -q Running", "plain")
 
-    # The same image in a user-namespaced pod, with the node store and the
-    # daemon socket mounted.
     wait("kubectl apply -f /etc/nix-snapshotter-test/userns.json")
     wait("kubectl get pod userns -o jsonpath='{.status.phase}' | grep -q Running", "userns")
     uid_map = node1.succeed("kubectl exec userns -- cat /proc/self/uid_map")
     assert not uid_map.split()[:2] == ["0", "0"], f"not user-namespaced: {uid_map}"
 
-    # A build from inside that pod, through the node's daemon, in its sandbox.
-    # The expression is a store path, so the pod sees it through the store
-    # mount; the /etc entry is only a symlink to it.
+    # The expression is a store path, so the pod sees it through the store mount; the /etc entry is only a symlink.
     probe = node1.succeed("readlink -f /etc/nix-snapshotter-test/sandbox-probe.nix").strip()
-    # The driver does not log a failed command's output, so print nix's.
+    # The driver does not log a failed command's output.
     status, output = node1.execute(
         f"kubectl exec userns -- nix-build --no-out-link {probe} 2>&1"
     )

@@ -1,37 +1,23 @@
-# The whole cluster, as one `cairn.clusters.<name>` value.
-#
-# It lives in its own file, apart from ./flake.nix, so cairn's own
-# checks/flake-module.nix can evaluate the exact spec this example ships
-# rather than a copy of it that could drift.
+# Apart from ./flake.nix so checks/flake-module.nix evaluates the exact spec this example ships.
 {
-  # Name of the flake input cairn's modules are resolved through. Consumer
-  # flakes use the name they gave the input ("cairn", as in ./flake.nix);
-  # cairn's own in-repo checks pass "self".
+  # Consumer flakes use the name they gave the cairn input; cairn's own checks pass "self".
   moduleInput ? "cairn",
   system ? "x86_64-linux",
 }:
 {
   inherit moduleInput;
 
-  # `clusterName` defaults to the attribute name this is assigned to
-  # ("example" in ./flake.nix), so it isn't set here.
-
-  # Floating VIP the loadbalancer manages; every node and client reaches the
-  # apiserver here. Must be on the same L2 subnet as the control-plane
-  # machines, since keepalived uses VRRP.
+  # Must share an L2 subnet with the control-plane machines, since keepalived uses VRRP.
   vip = "10.10.0.10";
 
-  # Pin the Kubernetes minor via kubepkgs rather than following whatever
-  # nixpkgs is locked to; upgrades then step this one minor at a time (see
-  # docs/UPGRADES.md).
+  # Upgrades step this one minor at a time; see docs/UPGRADES.md.
   versions.kubernetes = "1.36";
 
   machines = {
     cp1 = {
       role = "control-plane";
       ip = "10.10.0.11";
-      # Staggered so cp1 holds the VIP by default; any of the three can take
-      # it over if cp1 goes down.
+      # Staggered so cp1 holds the VIP by default.
       keepalivedPriority = 150;
     };
     cp2 = {
@@ -47,16 +33,10 @@
     worker1 = {
       role = "worker";
       ip = "10.10.0.21";
-      # A machine bigger than the rest earns a higher cap than the
-      # cluster-wide `services.kubelet.maxPods`. The node's /24 podCIDR is
-      # the ceiling, at 254 addresses.
+      # The node's /24 podCIDR caps this at 254.
       maxPods = 250;
-      # Extra labels sit on top of the `node-role.kubernetes.io/worker` label
-      # every machine gets for its role.
       nodeLabels."example.com/gpu" = "true";
-      # This one also runs a storage daemon outside Kubernetes, so it holds
-      # back memory the other workers have no reason to. Allocatable is
-      # capacity minus these, and the scheduler places against allocatable.
+      # This one also runs a storage daemon outside Kubernetes, so it holds back memory the other workers do not.
       systemReserved = {
         cpu = "2";
         memory = "4Gi";
@@ -66,39 +46,28 @@
     worker2 = {
       role = "worker";
       ip = "10.10.0.22";
-      # Optional: pods on this node can run `nix:0/nix/store/...` images
-      # straight off its nix store. Per machine, so nodes move over one at a
-      # time, each drained first.
+      # Per machine, so nodes move over one at a time, each drained first.
       nixSnapshotter = true;
     };
   };
 
   services = {
-    # An HA control plane needs the VIP, so keepalived and HAProxy run on all
-    # three control-plane machines. Enabling this also moves the apiservers
-    # themselves to port 6444, behind HAProxy on 6443.
+    # Enabling this moves the apiservers to 6444, behind HAProxy on 6443.
     loadbalancer = {
       enable = true;
       interface = "eth0";
-      # Only needs changing if another VRRP-managed VIP shares the subnet.
       virtualRouterId = 51;
     };
 
-    # Optional: extra containerd handlers for Kubernetes RuntimeClasses. This
-    # one mounts /sys/fs/cgroup writable, for pods that run their own
-    # container runtime (dind, podman, buildkitd) under hostUsers: false.
+    # For pods running their own container runtime under hostUsers: false.
     kubelet.containerdRuntimes.runc-cgroup-writable = {
       runtime_type = "io.containerd.runc.v2";
       cgroup_writable = true;
       options.SystemdCgroup = true;
     };
 
-    # Optional: the Metrics API, for `kubectl top` and resource-metrics HPAs.
-    # The image comes from the pinned minor's kubepkgs build.
     metrics-server.enable = true;
 
-    # Optional: point Flux at your own GitOps repository. Drop this block
-    # entirely if you don't want a GitOps bootstrap.
     flux = {
       enable = true;
       url = "https://github.com/your-org/example-cluster";
@@ -107,10 +76,7 @@
     };
   };
 
-  # Merged into every machine in the cluster. Substitute each real machine's
-  # own hardware configuration (e.g. from `nixos-generate-config`); this
-  # example's five machines are identical placeholders, so it all goes here
-  # rather than in per-machine `machines.<name>.nixos`.
+  # Substitute each real machine's own hardware configuration; these five are identical placeholders, so it all goes here rather than in `machines.<name>.nixos`.
   nixos = {
     nixpkgs.hostPlatform = system;
     fileSystems."/" = {

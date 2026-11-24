@@ -1,9 +1,5 @@
-# Pins the member's etcd to the cluster's Kubernetes minor. kubeadm ships one
-# etcd version per Kubernetes minor, so a cluster held at a minor holds its
-# data store with it instead of following whatever nixpkgs is locked to.
-#
-# kubepkgs splits etcd into server, etcdctl and etcdutl derivations where
-# nixpkgs ships all three in one package, hence the separate `tools`.
+# kubeadm ships one etcd per Kubernetes minor, so a cluster held at a minor holds its data store with it.
+# kubepkgs splits out etcdctl and etcdutl, hence the separate `tools`.
 { kubepkgs }:
 {
   config,
@@ -29,7 +25,6 @@ in
         ;
     in
     {
-      # mkDefault: an explicit `versions.etcdPackage` still wins over the pin.
       cluster.cairn.etcd = {
         package = lib.mkDefault deps.etcd;
         tools = lib.mkDefault [

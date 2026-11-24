@@ -1,14 +1,5 @@
-# The `cairn.clusters.<name>` option tree: a whole Kubernetes cluster described
-# in one place, lowered to clan inventory instances and per-machine NixOS
-# config by ./lower.nix.
-#
-# The surface is deliberately wide. Every setting any role `interface` under
-# modules/service/ accepts is reachable here, and so are the cairn NixOS
-# options no inventory setting reaches at all (`cluster.cairn.apiServerPort`,
-# `etcd.initialClusterState`, the `coredns.*` knobs, the pki `override`
-# escape hatches). Where a service grows an option, this file and ./lower.nix
-# grow with it; `settings` / `extraModules` / `nixos` / `extraInstances` are
-# the escape hatches for anything not yet modelled.
+# Every role `interface` setting is reachable here, plus the cairn NixOS options no inventory setting reaches.
+# A service option added is added here and in ./lower.nix too; `settings`, `extraModules`, `nixos` and `extraInstances` cover anything not yet modelled.
 { lib }:
 let
   inherit (lib)
@@ -17,7 +8,6 @@ let
     types
     ;
 
-  # enable/settings/extraModules, identical for every service.
   common = svc: {
     enable = mkOption {
       type = types.bool;
@@ -538,8 +528,7 @@ let
             description = "Keepalived VRRP virtual router ID (1-255), unique per subnet.";
           };
 
-          # Same declaration as the service interface, so defaults and types
-          # cannot drift between the two surfaces.
+          # Same declaration as the service interface, so the two surfaces cannot drift.
           inherit (import ../../modules/service/loadbalancer/options.nix { inherit lib; }) healthCheck;
         };
 
@@ -742,10 +731,7 @@ let
           };
         };
 
-        # Unlike every other entry here, not a clan service: cairn deploys
-        # nothing for it, and the lowering applies it straight to every
-        # kubelet machine. An `enable` that deploys node-exporter would sit
-        # alongside these.
+        # Not a clan service: the lowering applies these straight to every kubelet machine.
         node-exporter = {
           openFirewall = mkOption {
             type = types.bool;

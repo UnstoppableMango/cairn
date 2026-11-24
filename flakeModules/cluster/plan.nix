@@ -1,19 +1,9 @@
-# The order an upgrade walks one evaluated `cairn.clusters.<name>`, emitted as
-# the `cairn-upgrade-plan.<name>` flake output and read by `cairn-upgrade`
-# (pkgs/upgrade). It comes from the same evaluation the machines are built
-# from, so a machine added to the cluster is in the rollout without a list to
-# keep in sync.
-#
-# Control-plane machines go first, then workers, which keeps every kubelet at
-# or behind its apiserver for the whole rollout. Within the control plane the
-# lowest keepalived priority goes first and the default VIP holder last, so
-# the VIP moves at most once.
+# Emitted from the same evaluation the machines are built from, so a new machine joins the rollout with no list to keep in sync.
+# Control plane first keeps every kubelet at or behind its apiserver; the lowest keepalived priority goes first and the default VIP holder last, so the VIP moves at most once.
 { lib }:
 {
   cluster,
-  # Machine name to the `clan.core.networking.targetHost` its NixOS config
-  # declares, or null. Only `--rollback` connects to a machine directly;
-  # everything else goes through clan or the cluster's own endpoints.
+  # Only `--rollback` connects to a machine directly.
   targetHostOf ? _: null,
 }:
 let
@@ -21,7 +11,6 @@ let
 
   runs = service: m: svc.${service}.enable && lib.elem m svc.${service}.machines;
 
-  # Same precedence as `effectiveVersion` in ./lower.nix.
   versionOf =
     m:
     if cluster.machines.${m}.kubernetesVersion != null then
@@ -42,11 +31,8 @@ let
       etcd = runs "etcd" m;
       apiserver = runs "apiserver" m;
       kubelet = runs "kubelet" m;
-      # A master-only machine is tainted unschedulable, so it holds no pods
-      # worth draining.
       drain = runs "kubelet" m && (mc.role == "worker" || mc.schedulable);
-      # The minor the node's kubelet should report once updated, or null when
-      # the cluster follows nixpkgs and the version is unknowable here.
+      # null when the cluster follows nixpkgs and the version is unknowable here.
       kubernetesVersion = versionOf m;
     };
 
@@ -54,8 +40,6 @@ let
 
   isControlPlane = m: runs "etcd" m || runs "apiserver" m;
 
-  # An unset priority falls back to the loadbalancer service's own default
-  # (modules/service/loadbalancer/options.nix).
   priority =
     m:
     if cluster.machines.${m}.keepalivedPriority != null then
@@ -63,7 +47,7 @@ let
     else
       100;
 
-  # `sort` is not stable, so the name breaks ties explicitly.
+  # `sort` is not stable, so the name breaks ties.
   controlPlane = lib.sort (
     a: b: if priority a != priority b then priority a < priority b else a < b
   ) (lib.filter isControlPlane names);

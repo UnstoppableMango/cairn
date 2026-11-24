@@ -1,17 +1,5 @@
-# Regression check for #37: `inoculant`, `flux`, `kubelet`, `etcd` and
-# `kubeconfig` are the services that close over cairn's *own* flake inputs
-# (`inoculant` / `a2b` / `kubepkgs`). If those are reached through a module argument that only
-# exists inside cairn's own flake.nix (e.g. an `inputs` specialArg),
-# resolving the service blows up with `error: attribute 'inputs' missing`,
-# but only once a machine is actually assigned one of the roles, since
-# `importApply` is lazy.
-#
-# This is an *evaluation-only* check rather than extra roles on the
-# single-node VM test: `flux` needs a real GitOps git repository to sync
-# from, which a sandboxed, network-less VM test can't provide, and its
-# manifest bundle is built via IFD. Forcing the two NixOS options that pull
-# `inoculant` / `a2b` into scope is enough to catch the breakage without
-# booting anything.
+# Regression check for #37: these services close over cairn's own flake inputs, and reaching them through an argument that exists only inside cairn's flake.nix fails with `attribute 'inputs' missing`, but only once a machine takes a role, since `importApply` is lazy.
+# Evaluation-only because `flux` needs a real GitOps repository, which a network-less VM test cannot provide.
 {
   cairnModules,
   clan-core,
@@ -50,11 +38,8 @@ let
 
   probe = {
     inoculant = builtins.unsafeDiscardStringContext "${cfg.pkg}";
-    # The single-node example pins no version, so this must still be
-    # nixpkgs' kubernetes; forcing it walks kubelet's version module.
+    # The single-node example pins no version, so forcing these walks the version modules on nixpkgs' kubernetes and etcd.
     kubelet = builtins.unsafeDiscardStringContext "${node1.services.kubernetes.package}";
-    # Same for etcd: unpinned, the member stays on nixpkgs' etcd, and forcing
-    # it walks etcd's version module.
     etcd = builtins.unsafeDiscardStringContext "${node1.services.etcd.package}";
     kubectl = builtins.unsafeDiscardStringContext "${node1.cluster.cairn.kubeconfig.kubectl}";
     flux =

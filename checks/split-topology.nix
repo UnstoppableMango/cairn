@@ -1,19 +1,5 @@
-# Coverage for a topology where services do not share machines the way both
-# examples assume: `etcd1` runs etcd and nothing else, `cp1` runs the
-# apiserver without being an etcd member, `lb1` fronts the apiserver without
-# running one, and `dns1` bootstraps CoreDNS without either. See
-# docs/TOPOLOGY.md.
-#
-# Both examples are maximal co-location cases (single-node runs everything on
-# one machine, ha-cluster puts every control-plane service on every
-# control-plane machine), so nothing else in CI evaluates a machine that has
-# one of these services without the others. That is precisely where the
-# certificate declarations, the `cluster.cairn.*` option declarations, and
-# the probes that assume a local apiserver stop lining up.
-#
-# Evaluation-only, like ./consumer-services.nix and ./flake-module.nix: the
-# breakage is a missing attribute at eval time, and booting two machines
-# would prove nothing further.
+# `etcd1` runs only etcd, `cp1` runs the apiserver without etcd, `lb1` fronts an apiserver it does not run, and `dns1` bootstraps CoreDNS without either.
+# Both examples co-locate everything, so nothing else in CI evaluates where certificate declarations, `cluster.cairn.*` options and local-apiserver probes stop lining up; see docs/TOPOLOGY.md.
 {
   cairnModules,
   clan-core,
@@ -60,7 +46,6 @@ let
         roles.node.tags.all = { };
       };
 
-      # The whole point: the member is on a machine with no apiserver.
       etcd = mkModule "etcd" // {
         roles.member.machines.etcd1.settings = {
           ip = etcdIp;
@@ -68,7 +53,6 @@ let
         };
       };
 
-      # ...and the apiserver is on a machine with no etcd member.
       apiserver = mkModule "apiserver" // {
         roles.control-plane.machines.cp1.settings = {
           ip = cpIp;
@@ -76,7 +60,6 @@ let
         };
       };
 
-      # cp1 fronts its own apiserver, lb1 fronts one it does not run.
       loadbalancer = mkModule "loadbalancer" // {
         roles.control-plane.settings = {
           inherit vip;
@@ -89,8 +72,6 @@ let
       kubelet = mkModule "kubelet" // {
         roles.node.machines.cp1.settings = {
           ip = cpIp;
-          # cp1 runs an apiserver, so it is a node without being a target
-          # for pods.
           schedulable = false;
           inherit vip clusterName;
         };
@@ -124,15 +105,10 @@ let
     machines.dns1.nixpkgs.hostPlatform = system;
 
     machines.dns1.cluster.cairn.coredns = {
-      # The service CIDR a consumer would set alongside the apiserver's own.
       # dns1 runs no apiserver, so this is the only place it can come from.
       inherit serviceClusterIpRange;
 
-      # dns1 applies the manifests but runs no kubelet, so the pods have to
-      # be pinned somewhere else. cp1 runs one, and the manifest's
-      # master/unschedulable tolerations cover its control-plane taint.
-      # Without this the default would pin them to dns1, a machine that is
-      # not a node at all.
+      # dns1 runs no kubelet, so the default would pin the pods to a machine that is not a node.
       nodeNames = [ "cp1" ];
     };
   };
@@ -146,83 +122,59 @@ let
 
   apiserver = cp1.services.kubernetes.apiserver;
 
-  # `certs.<name>.cert` resolves to a path clan's vars machinery only
-  # produces once `clan vars generate` has run, so an evaluation-only check
-  # reads the declaration rather than the generated file. Missing the
-  # declaration is the failure being guarded against either way: the
-  # apiserver's `pki.certs."etcd-client-cert"` lookup is what breaks.
+  # `certs.<name>.cert` is a clan vars path that exists only after `clan vars generate`, so this reads the declaration, whose absence breaks the apiserver's `pki.certs."etcd-client-cert"` lookup.
   clientCertOn = machine: machine.cluster.cairn.pki.certs."etcd-client-cert";
 
   probe = {
-    # The etcd client certificate on a machine that runs the apiserver and is
-    # not an etcd member.
     apiserverEtcdClient =
       assert (clientCertOn cp1).cn == "kube-apiserver-etcd-client";
       (clientCertOn cp1).profile;
 
-    # The generator pki builds from that declaration, proving it reaches the
-    # machine rather than merely being declared in a module nothing imports.
+    # The generator proves the declaration reaches the machine rather than sitting in a module nothing imports.
     apiserverEtcdClientGenerator =
       cp1.clan.core.vars.generators.cairn-etcd-client-cert.files.crt.secret;
 
-    # The endpoint reaches cp1 across machines, through the etcd service's
-    # export rather than through co-location.
     apiserverEtcdServers =
       assert apiserver.etcd.servers == [ "https://${etcdIp}:2379" ];
       apiserver.etcd.servers;
 
-    # etcd on a machine with no apiserver, and so no `cluster.cairn.vip`.
     etcdMember =
       assert etcd1.services.etcd.initialCluster == [ "etcd1=https://${etcdIp}:2380" ];
       etcd1.services.etcd.initialClusterToken;
 
-    # etcd still gets the shared client cert for its own etcdctl.
     etcdctl = (clientCertOn etcd1).cn;
 
-    # nixpkgs turns these on only through a Kubernetes role, which etcd1 does
-    # not have. Without the unit's ExecStart etcd never starts, and without
-    # the cert's owner sops-install-secrets installs no secret at all.
+    # nixpkgs turns these on only through a Kubernetes role: without ExecStart etcd never starts, and without the cert's owner sops-install-secrets installs nothing.
     etcdOnlyMember =
       assert etcd1.services.etcd.enable;
       assert etcd1.systemd.services.etcd.serviceConfig ? ExecStart;
       assert (clientCertOn etcd1).owner == "kubernetes";
       etcd1.users.users.kubernetes.uid;
 
-    # A loadbalancer machine with no apiserver runs no keepalived track
-    # script: the probe would fail forever and permanently subtract the
-    # script's weight from this machine's VRRP priority.
+    # A track script here would fail forever and permanently subtract its weight from the VRRP priority.
     lbWithoutApiserver =
       assert trackScriptsOf lb1 == [ ];
       assert lb1.services.keepalived.vrrpScripts == { };
       lb1.services.keepalived.vrrpInstances.VI_K8S.priority;
 
-    # It still fronts the apiserver it does not run, through the export.
     lbBackend =
       assert lib.hasInfix "server ${cpIp}:${toString apiserverPort}" lb1.services.haproxy.config;
       lb1.services.haproxy.enable;
 
-    # Where an apiserver *is* co-located the track script stays, and reads
-    # the local apiserver's own port rather than a backend entry's.
     lbWithApiserver =
       assert trackScriptsOf cp1 == [ "check_apiserver" ];
       assert lib.hasInfix "https://127.0.0.1:${toString apiserverPort}/readyz"
         cp1.services.keepalived.vrrpScripts.check_apiserver.script;
       cp1.services.keepalived.vrrpScripts.check_apiserver.weight;
 
-    # CoreDNS derives its ClusterIP from the service CIDR it is given, not
-    # from the local apiserver's config, which a machine that only
-    # bootstraps the manifests does not have.
     corednsClusterIp =
       assert dns1.cluster.cairn.coredns.clusterIp == "10.96.0.254";
       dns1.cluster.cairn.coredns.clusterIp;
 
-    # The pods are pinned to the machine that runs a kubelet, not to the one
-    # that applied the manifests.
     corednsNodeNames =
       assert dns1.cluster.cairn.coredns.nodeNames == [ "cp1" ];
       dns1.cluster.cairn.coredns.nodeNames;
 
-    # ...and it seeds no image where there is no kubelet to seed it into.
     corednsWithoutKubelet =
       assert dns1.services.kubernetes.kubelet.seedDockerImages == [ ];
       assert dns1.services.kubernetes.inoculant.enable;

@@ -115,14 +115,8 @@ in
           serviceAccountName = "coredns";
           dnsPolicy = "Default";
           affinity = seededImage.affinity "coredns" image nodeNames;
-          # nixpkgs' default toleration for "node-role.kubernetes.io/master" omits
-          # operator/value, so it defaults to Equal against value "", which never
-          # matches the master taint's value "true" (set by
-          # services.kubernetes.kubelet.taints.master). Use Exists so it actually
-          # tolerates the taint. Also tolerate the "unschedulable" taint nixpkgs
-          # applies to master-only nodes (services.kubernetes.kubelet.unschedulable
-          # defaults to true there), since these control-plane nodes are the only
-          # ones the image is seeded on.
+          # nixpkgs' default master toleration omits operator and value, so it never matches the taint's value "true".
+          # Unschedulable is tolerated too, since these master-only nodes are the only ones the image is seeded on.
           tolerations = [
             {
               key = "node-role.kubernetes.io/master";
@@ -176,10 +170,7 @@ in
                 successThreshold = 1;
                 failureThreshold = 5;
               };
-              # Without this, kubelet marks the pod Ready as soon as the
-              # container starts, before CoreDNS finishes waiting on its
-              # Kubernetes API cache sync and actually binds :10053 — callers
-              # racing in against a "ready" replica get connection refused.
+              # Without this the pod is Ready before CoreDNS has synced its API cache and bound :10053, and callers get connection refused.
               readinessProbe = {
                 httpGet = {
                   path = "/health";

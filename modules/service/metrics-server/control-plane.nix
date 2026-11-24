@@ -14,10 +14,7 @@ let
 
   v = config.cluster.cairn.kubernetesVersion;
 
-  # nixpkgs ships no metrics-server, so the package always comes from
-  # kubepkgs: the cluster's pinned minor where there is one, and kubepkgs'
-  # newest minor otherwise, which is the closest thing to "follow the
-  # toolchain" available when nothing is pinned.
+  # nixpkgs ships no metrics-server, so unpinned clusters take kubepkgs' newest minor.
   sigs =
     (release {
       inherit lib pkgs;
@@ -85,8 +82,6 @@ in
   };
 
   config = {
-    # Kubelet settings, so they only apply where a kubelet runs: a machine
-    # that only bootstraps the manifests has no image to seed.
     services.kubernetes.kubelet = lib.mkIf config.services.kubernetes.kubelet.enable {
       seedDockerImages = [ cfg.image ];
     };
@@ -94,19 +89,11 @@ in
     services.kubernetes.inoculant = {
       enable = true;
 
-      # Advertises the seeded tag where the image is seeded, which the
-      # Deployment's node affinity requires; see ../seeded-image.nix.
       nodeLabels = lib.mkIf config.services.kubernetes.kubelet.enable {
         ${seededImage.label "metrics-server"} = cfg.image.imageTag;
       };
 
-      # inoculant scopes its own RBAC to the kinds it finds in `manifests`,
-      # and RBAC keys the "bind" check on the referenced role's resource
-      # rather than on rolebindings. The auth-reader RoleBinding here
-      # references the apiserver's own
-      # `extension-apiserver-authentication-reader` Role, and this addon
-      # ships no Role of its own, so nothing in the manifest set grants
-      # `bind` on roles and the binding is refused.
+      # inoculant scopes its RBAC to the kinds in `manifests`, and RBAC checks "bind" against the referenced Role; this addon ships no Role, so the auth-reader binding would be refused.
       additionalAllowedGVKs = [
         {
           group = "rbac.authorization.k8s.io";
