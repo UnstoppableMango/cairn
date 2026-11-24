@@ -158,23 +158,11 @@ in
     };
 
     services.kubernetes.kubelet = {
-      # clan sets meta.domain, which causes networking.fqdnOrHostName to return
-      # e.g. "node1.example.com". The NixOS kubelet default uses fqdnOrHostName,
-      # but cert CNs are generated from the short hostname ("system:node:node1").
-      # Node Authorizer rejects: cert subject "node1" cannot read node "node1.example.com".
+      # clan sets meta.domain, so the NixOS default's fqdnOrHostName gives "node1.example.com", while the cert CN is "system:node:node1" and the Node Authorizer rejects the mismatch.
       hostname = config.networking.hostName;
-      # nixpkgs hardcodes --root-dir=${services.kubernetes.dataDir} with no
-      # option of its own, and emits it ahead of extraOpts. A second --root-dir
-      # wins, since pflag overwrites a scalar flag on repeat.
+      # nixpkgs hardcodes --root-dir ahead of extraOpts, and pflag lets a repeated scalar flag win.
       extraOpts = "--root-dir=${cfg.rootDir}";
-      # KubeletConfiguration rather than the deprecated --max-pods flag.
-      # extraConfig is attrsOf json, so this merges per-key with whatever
-      # else a consumer puts there.
-      #
-      # The reservation keys are omitted when empty rather than written as
-      # `{}`. An empty attrset means the same thing to kubelet, but defining
-      # the key here would collide with a consumer that still sets it
-      # directly on services.kubernetes.kubelet.extraConfig.
+      # Empty reservations are omitted rather than written as `{}`, which would collide with a consumer still setting them directly on services.kubernetes.kubelet.extraConfig.
       extraConfig = {
         maxPods = cfg.maxPods;
       }

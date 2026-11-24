@@ -9,10 +9,7 @@ let
   cluster = config.cluster.cairn;
   hc = cfg.healthCheck;
 
-  # The keepalived track script asks whether *this* machine's apiserver is
-  # ready, so it is only meaningful where one runs. A loadbalancer machine
-  # without an apiserver would fail the probe forever and hand its VIP
-  # priority away permanently.
+  # Without a local apiserver the track script would fail forever and hand the VIP priority away permanently.
   apiserverColocated = config.services.kubernetes.apiserver.enable;
   localApiserverPort = toString config.services.kubernetes.apiserver.securePort;
 
@@ -33,10 +30,7 @@ let
 
   serverFlags = "check" + lib.optionalString hc.enable " check-ssl verify none";
 
-  # How fast HAProxy notices a backend is gone. Its defaults (a 2s interval,
-  # three failures, and a check bounded only by `timeout connect`) leave a
-  # powered-off apiserver in rotation for up to ~20s, and every new connection
-  # round-robined onto it hangs for the whole connect timeout before failing.
+  # HAProxy's defaults leave a powered-off apiserver in rotation for up to ~20s, and each connection sent to it hangs for the whole connect timeout.
   defaultServer = "inter 2s fall 2 rise 2";
 in
 {
@@ -64,8 +58,7 @@ in
 
       vrrpScripts = lib.mkIf trackApiserver {
         check_apiserver = {
-          # The apiserver's cert isn't checked: this asks "is the local
-          # apiserver ready", and TLS identity is the client's concern.
+          # The cert is not checked: TLS identity is the client's concern, and this only asks whether the local apiserver is ready.
           script = "${pkgs.curl}/bin/curl -sfk -o /dev/null --max-time 2 https://127.0.0.1:${localApiserverPort}/readyz";
           interval = hc.interval;
           fall = hc.fall;

@@ -1,24 +1,10 @@
-# Coverage for `flakeModules.default`'s `cairn.clusters` interface: the option
-# tree in flakeModules/cluster/options.nix and the lowering in
-# flakeModules/cluster/lower.nix.
-#
-# Nothing else in CI touches them. The single-node VM test writes its
-# inventory by hand (that's the point of it), and examples/ha-cluster is a
-# separate flake `nix flake check` never descends into, so without this the
-# whole interface could break unnoticed.
-#
-# Evaluation-only, like ./consumer-services.nix and for the same reasons: the
-# lowering's output is an inventory, and the thing worth proving is that clan
-# accepts it and that the settings land where they should. Booting five
-# machines would prove nothing further about this file's subject.
+# Covers the `cairn.clusters` option tree and its lowering, which nothing else in CI touches: the VM test writes its inventory by hand, and `nix flake check` never descends into examples/ha-cluster.
+# Evaluation-only, since what needs proving is that clan accepts the lowered inventory and the settings land where they should.
 {
-  # Cairn's `clan.modules` registry, i.e. what a consumer flake sees as
-  # `inputs.cairn.clan.modules`.
   cairnModules,
   clan-core,
   nixpkgs,
   kubepkgs,
-  # pkgs/upgrade, run against the example's plan with `--dry-run`.
   cairn-upgrade,
   pkgs,
   lib,
@@ -26,16 +12,12 @@
 let
   inherit (pkgs.stdenv.hostPlatform) system;
 
-  # The exact release the example pins, so the assertions below can name the
-  # derivations a pinned machine must end up with rather than describe them.
+  # The release the example pins, so assertions can name the exact derivations.
   pinned = kubepkgs.legacyPackages.${system}.kubernetes."1.36";
 
   cairnLib = import ../lib { inherit lib; };
 
-  # Run the example's spec through the option tree exactly as flake-parts
-  # would, so defaults and types apply, then lower it. Going through
-  # `evalModules` directly rather than `flake-parts.lib.mkFlake` keeps this to
-  # the two files under test.
+  # `evalModules` rather than `flake-parts.lib.mkFlake` keeps this to the two files under test.
   exampleSpec = import ../examples/ha-cluster/cluster.nix {
     inherit system;
     moduleInput = "cairn";
@@ -57,7 +39,6 @@ let
       multi = false;
     } (evalSpec spec);
 
-  # What `cairn-upgrade` walks, as the `cairn-upgrade-plan` output emits it.
   plan = import ../flakeModules/cluster/plan.nix { inherit lib; } {
     cluster = evalSpec exampleSpec;
   };
@@ -65,8 +46,7 @@ let
 
   lowered = lowerSpec exampleSpec;
 
-  # The example sets no cluster-wide reservation, so on its own it cannot tell
-  # a machine falling back to the cluster value from one falling back to `{}`.
+  # The example sets no cluster-wide reservation, so it cannot tell a fallback to the cluster value from one to `{}`.
   withClusterReservation = lowerSpec (
     lib.recursiveUpdate exampleSpec {
       services.kubelet.systemReserved = {
@@ -85,7 +65,6 @@ let
     }
   );
 
-  # Same stand-in for a downstream consumer flake as ./consumer-services.nix:
   # clan reads `config.self.inputs` to resolve `module.input = "cairn"`.
   mkConsumer =
     lowered:
@@ -113,9 +92,6 @@ let
     instance: role: machine:
     instances.${instance}.roles.${role}.machines.${machine}.settings;
 
-  # Facts about the lowering that a typo would silently change. Written as
-  # assertions rather than probes because each is a specific claim about what
-  # ./cluster/lower.nix produced.
   expectations = [
     {
       msg = "every service in the example lowers to an instance";
@@ -181,16 +157,12 @@ let
         && (settingsOf "kubelet" "node" "cp1").vip == "10.10.0.10";
     }
     {
-      # Workers take pods; control-plane machines are nodes without being
-      # scheduling targets, unless `machines.<name>.schedulable` says so.
       msg = "schedulability follows the machine's role";
       cond =
         (settingsOf "kubelet" "node" "worker1").schedulable
         && !(settingsOf "kubelet" "node" "cp1").schedulable;
     }
     {
-      # A machine's own cap wins; everything else takes the cluster value,
-      # which is kubelet's 110 until the cluster says otherwise.
       msg = "a per-machine maxPods overrides the cluster default";
       cond =
         (settingsOf "kubelet" "node" "worker1").maxPods == 250
@@ -198,17 +170,12 @@ let
         && (settingsOf "kubelet" "node" "cp1").maxPods == 110;
     }
     {
-      # The role setting has to reach the KubeletConfiguration file, not stop
-      # at the inventory.
       msg = "maxPods reaches the rendered kubelet configuration";
       cond =
         consumer.config.nixosConfigurations.worker1.config.services.kubernetes.kubelet.extraConfig.maxPods
         == 250;
     }
     {
-      # Same precedence as maxPods: the machine's own figure wins, everything
-      # else takes the cluster's, which is empty until the cluster says
-      # otherwise.
       msg = "a per-machine reservation overrides the cluster default";
       cond =
         (settingsOf "kubelet" "node" "worker1").systemReserved == {
@@ -248,9 +215,7 @@ let
         && cfg.evictionHard == { "memory.available" = "1Gi"; };
     }
     {
-      # An unset reservation is left out of the KubeletConfiguration rather
-      # than written as `{}`, so a consumer setting one directly on
-      # services.kubernetes.kubelet.extraConfig does not collide.
+      # Left out rather than `{}`, so a consumer setting one directly on services.kubernetes.kubelet.extraConfig does not collide.
       msg = "an unset reservation is absent from the rendered configuration";
       cond =
         let
@@ -259,8 +224,6 @@ let
         !(cfg ? systemReserved) && !(cfg ? kubeReserved) && !(cfg ? evictionHard);
     }
     {
-      # Containers inherit containerd's soft limit, so this is the limit every
-      # pod starts with, schedulable node or not.
       msg = "containerd raises the nofile limit containers inherit";
       cond =
         let
@@ -276,7 +239,6 @@ let
       cond = !(lib.elem 9100 (firewallPortsOf consumer "worker1"));
     }
     {
-      # Every kubelet machine runs the DaemonSet, control plane included.
       msg = "node-exporter.openFirewall opens its port on every kubelet machine";
       cond =
         let
@@ -288,8 +250,6 @@ let
         ];
     }
     {
-      # Added beside nixpkgs' default runc handler rather than replacing it,
-      # on every kubelet, schedulable node or not.
       msg = "extra containerd runtime handlers reach every kubelet";
       cond =
         let
@@ -305,7 +265,6 @@ let
         ok "worker1" && ok "cp1";
     }
     {
-      # Per machine: worker2 opts in and worker1 keeps containerd's default.
       msg = "nix-snapshotter reaches only the machines that enable it";
       cond =
         let
@@ -341,8 +300,6 @@ let
         && (settingsOf "kubelet" "node" "cp1").kubernetesVersion == "1.36";
     }
     {
-      # The kubepkgs-built symlinkJoin lands as the machine's combined
-      # Kubernetes package. Evaluation-only: the derivation is never built.
       msg = "the version pin produces the kubepkgs package set";
       cond = lib.hasInfix "1.36" consumer.config.nixosConfigurations.cp1.config.services.kubernetes.package.name;
     }
@@ -351,9 +308,7 @@ let
       cond = (settingsOf "etcd" "member" "cp1").kubernetesVersion == "1.36";
     }
     {
-      # The member's etcd is the pinned minor's, named outright: a weaker
-      # claim (an etcd that is not nixpkgs') also holds for every other minor
-      # kubepkgs ships. Evaluation-only; the derivations are never built.
+      # Named outright, since "not nixpkgs' etcd" holds for every minor kubepkgs ships.
       msg = "the version pin reaches the etcd server and its tools";
       cond =
         let
@@ -371,8 +326,7 @@ let
       cond = (settingsOf "kubeconfig" "node" "cp1").kubernetesVersion == "1.36";
     }
     {
-      # The kubectl on an operator's PATH is the pinned minor's, not nixpkgs',
-      # which can drift past the one-minor kubectl skew.
+      # nixpkgs' kubectl can drift past the one-minor kubectl skew.
       msg = "the version pin reaches the kubectl on the machine's PATH";
       cond =
         consumer.config.nixosConfigurations.cp1.config.cluster.cairn.kubeconfig.kubectl == pinned.kubectl;
@@ -382,9 +336,7 @@ let
       cond = instances."metrics-server".roles.control-plane.machines ? cp1;
     }
     {
-      # The addon's image is built from the pinned minor's metrics-server,
-      # named outright: nixpkgs ships none, so a weaker claim about the
-      # package's name holds for every minor kubepkgs has.
+      # Named outright, since nixpkgs ships no metrics-server and a claim about the name holds for every minor.
       msg = "the pinned minor supplies the metrics-server image";
       cond =
         let
@@ -399,8 +351,6 @@ let
           ];
     }
     {
-      # kubeadm ties CoreDNS to the minor, so cluster DNS moves with the pin
-      # instead of following nixpkgs.
       msg = "the pinned minor supplies the CoreDNS image";
       cond =
         consumer.config.nixosConfigurations.cp1.config.cluster.cairn.coredns.package == pinned.deps.coredns;
@@ -432,8 +382,6 @@ let
         && (settingsOf "inoculant" "node" "worker1").nodeLabels ? "node-role.kubernetes.io/worker";
     }
     {
-      # worker1 sets nodeLabels in examples/ha-cluster; the role label has to
-      # survive alongside it rather than being replaced by it.
       msg = "machine node labels merge with the role label";
       cond =
         (settingsOf "inoculant" "node" "worker1").nodeLabels == {
@@ -442,8 +390,7 @@ let
         };
     }
     {
-      # The merge above passes either way round, since the two keys differ.
-      # Overriding the role key is what pins the order: the machine wins.
+      # The merge above passes in either order, since the keys differ; overriding the role key pins it.
       msg = "a machine node label can override the role label";
       cond =
         let
@@ -471,11 +418,7 @@ let
       cond = lowered.inventory.machines.worker1.tags == [ "worker" ];
     }
     {
-      # The other half of the surface: options no inventory setting reaches,
-      # emitted as NixOS config onto the machines whose roles declare them.
-      # The mirror image — a value landing on a machine that has no such
-      # option — needs no assertion here, since the probe below evaluates
-      # both machines and would fail outright.
+      # A value landing on a machine without the option needs no assertion, since the probe below would fail outright.
       msg = "NixOS-level options reach the machines that declare them";
       cond =
         let
@@ -484,9 +427,7 @@ let
         cp1.apiServerPort == 6443 && cp1.coredns.replicas == 2 && cp1.etcd.initialClusterState == "new";
     }
     {
-      # Workers before the control plane would put a kubelet ahead of its
-      # apiserver mid-rollout; the VIP holder (cp1) goes last so the VIP
-      # moves once.
+      # Workers first would put a kubelet ahead of its apiserver; the VIP holder goes last so the VIP moves once.
       msg = "the upgrade plan walks the control plane by ascending VIP priority, then workers";
       cond =
         map (m: m.machine) plan.machines == [
@@ -512,9 +453,7 @@ let
         && plan.apiserverPort == 6444;
     }
     {
-      # NixOS defaults this to false, which rejects every CSI node plugin and
-      # Ceph OSD daemon at admission. Assert the whole path, since the value
-      # only matters where it lands on services.kubernetes.
+      # NixOS defaults this to false, which rejects every CSI node plugin and Ceph OSD at admission.
       msg = "apiserver machines allow privileged pods by default";
       cond = consumer.config.nixosConfigurations.cp1.config.services.kubernetes.apiserver.allowPrivileged;
     }
@@ -522,13 +461,8 @@ let
 
   failures = map (e: e.msg) (lib.filter (e: !e.cond) expectations);
 
-  # Force clan's own view of the generated inventory: a control-plane and a
-  # worker machine, so both kubelet roles and the whole dependency chain
-  # (pki → etcd/apiserver exports → loadbalancer backends) actually resolve.
-  #
-  # String context is discarded so this stays an evaluation check, and
-  # nothing pki-derived is probed: those resolve to clan vars paths that only
-  # exist after `clan vars generate`.
+  # A control-plane and a worker machine cover both kubelet roles and the whole export chain.
+  # String context is discarded to stay an evaluation check, and nothing pki-derived is probed, since those are clan vars paths that exist only after `clan vars generate`.
   probe =
     map
       (

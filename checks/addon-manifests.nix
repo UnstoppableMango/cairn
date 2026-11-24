@@ -1,11 +1,4 @@
-# Evaluation-only coverage for the hand-authored addon manifests.
-#
-# The manifests reach a live cluster through inoculant, which renders them to
-# JSON on the machine. Forcing that rendering here would mean IFD over clan
-# vars paths that only exist after `clan vars generate`, so this calls the
-# manifest sets directly with fixtures instead: enough to catch a typo, a
-# missing RBAC rule, or a manifest that cannot be serialized, which is what
-# the VM test cannot reach and the option-tree check does not force.
+# Rendering through inoculant would mean IFD over clan vars paths that exist only after `clan vars generate`, so this calls the manifest sets with fixtures.
 { pkgs, lib }:
 let
   seededImage = import ../modules/service/seeded-image.nix;
@@ -37,9 +30,7 @@ let
         && metricsServer.metrics-server-apiservice.spec.service.name == "metrics-server";
     }
     {
-      # Without the auth-delegator binding every request the apiserver proxies
-      # is rejected, and without the auth-reader RoleBinding metrics-server
-      # cannot authenticate the front proxy at all.
+      # Without the auth-delegator binding every proxied request is rejected, and without the auth-reader RoleBinding metrics-server cannot authenticate the front proxy.
       msg = "metrics-server can delegate authn/authz to the apiserver";
       cond =
         metricsServer.metrics-server-auth-delegator.roleRef.name == "system:auth-delegator"
@@ -60,9 +51,7 @@ let
       ) metricsServer.metrics-server-cr.rules;
     }
     {
-      # The kubelet serving cert's only SAN is the machine's advertise
-      # address, so dropping either flag turns every scrape into a TLS
-      # verification failure.
+      # The kubelet serving cert's only SAN is the advertise address, so dropping either flag fails every scrape's TLS verification.
       msg = "kubelet scrapes verify against the cluster CA by address";
       cond =
         hasArg "--kubelet-certificate-authority=" && hasArg "--kubelet-preferred-address-types=InternalIP";
@@ -76,8 +65,7 @@ let
       cond = container.image == "metrics-server:0.7.2" && container.imagePullPolicy == "Never";
     }
     {
-      # #103: during a partial control-plane rollout only some nodes have
-      # the new tag, so the pod must require the label advertising it.
+      # #103: mid-rollout only some nodes have the new tag, so the pod must require the label advertising it.
       msg = "pods only schedule onto nodes that advertise the seeded image tag";
       cond =
         let
@@ -115,8 +103,6 @@ lib.throwIf (failures != [ ])
   "checks/addon-manifests.nix: the addon manifests no longer hold: ${lib.concatStringsSep "; " failures}"
   (
     pkgs.runCommand "cairn-addon-manifests" { } ''
-      # Forces every manifest through the JSON serialization inoculant
-      # renders them with on the machine.
       echo ${builtins.hashString "sha256" (builtins.toJSON metricsServer)} > /dev/null
       touch "$out"
     ''

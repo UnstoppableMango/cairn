@@ -26,8 +26,7 @@ in
     };
   };
 
-  # Aggregated into the default view/edit/admin roles by label, which is how
-  # `kubectl top` works for a user who is not cluster-admin.
+  # Aggregated into the default view/edit/admin roles, so `kubectl top` works without cluster-admin.
   metrics-server-aggregated-reader = {
     apiVersion = "rbac.authorization.k8s.io/v1";
     kind = "ClusterRole";
@@ -106,8 +105,6 @@ in
     ];
   };
 
-  # Lets the apiserver delegate authn/authz for requests it proxies to the
-  # aggregated API.
   metrics-server-auth-delegator = {
     apiVersion = "rbac.authorization.k8s.io/v1";
     kind = "ClusterRoleBinding";
@@ -129,8 +126,6 @@ in
     ];
   };
 
-  # Reads the requestheader client CA the apiserver publishes, so
-  # metrics-server can authenticate the front proxy.
   metrics-server-auth-reader = {
     apiVersion = "rbac.authorization.k8s.io/v1";
     kind = "RoleBinding";
@@ -173,9 +168,7 @@ in
         spec = {
           serviceAccountName = "metrics-server";
           priorityClassName = "system-cluster-critical";
-          # Same node-pinning rationale as coredns: the image is seeded onto
-          # these machines only, so the pod has to land on one of them that
-          # already has this build of it.
+          # The image is seeded onto these machines only.
           affinity = seededImage.affinity "metrics-server" image nodeNames;
           tolerations = [
             {
@@ -201,9 +194,7 @@ in
               args = [
                 "--cert-dir=/tmp"
                 "--secure-port=${toString ports.secure}"
-                # The kubelet serving cert's only SAN is the machine's
-                # advertise address, so scraping by the node's Hostname
-                # address would fail verification.
+                # The kubelet serving cert's only SAN is the advertise address.
                 "--kubelet-preferred-address-types=InternalIP"
                 "--kubelet-use-node-status-port"
                 "--kubelet-certificate-authority=${kubeletCaFile}"
@@ -261,9 +252,7 @@ in
               name = "tmp-dir";
               emptyDir = { };
             }
-            # The CA is public, and mounting the file the machine already has
-            # avoids reading it at evaluation time, when clan's vars
-            # generators may not have run yet.
+            # Mounting the machine's CA file avoids reading it at evaluation time, before clan's vars generators may have run.
             {
               name = "kubelet-ca";
               hostPath = {
@@ -298,10 +287,7 @@ in
     };
   };
 
-  # metrics-server serves on a self-signed cert it generates into --cert-dir,
-  # which is why the apiserver skips verification on this hop. The hop is
-  # authenticated in the other direction, by the front-proxy client cert the
-  # apiserver presents.
+  # metrics-server serves a self-signed cert, so the apiserver skips verification; the hop is authenticated the other way, by the front-proxy client cert.
   metrics-server-apiservice = {
     apiVersion = "apiregistration.k8s.io/v1";
     kind = "APIService";

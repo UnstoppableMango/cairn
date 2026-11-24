@@ -38,7 +38,7 @@ Each Kubernetes component is its own clan service under `modules/service/`, so c
 
 | Service | Roles | Depends on |
 | --- | --- | --- |
-| [`pki`](modules/service/pki/README.md) | `node` | — (provides the CA) |
+| [`pki`](modules/service/pki/README.md) | `node` | none (provides the CA) |
 | [`etcd`](modules/service/etcd/README.md) | `member` | `pki` |
 | [`apiserver`](modules/service/apiserver/README.md) | `control-plane` | `pki`, `etcd`, `kubelet` |
 | [`kubelet`](modules/service/kubelet/README.md) | `node` | `pki` |
@@ -54,8 +54,8 @@ Each service's own README documents its options and exports in more depth.
 ## Development
 
 ```sh
-make check   # nix flake check — evaluates the flake and runs the NixOS VM test
-make format  # nix fmt — formats via treefmt (nixfmt, mdformat, yamlfmt, jsonfmt, mbake)
+make check   # nix flake check: evaluates the flake and runs the NixOS VM test
+make format  # nix fmt: formats via treefmt (nixfmt, mdformat, yamlfmt, jsonfmt, mbake)
 make update  # nix flake update
 ```
 

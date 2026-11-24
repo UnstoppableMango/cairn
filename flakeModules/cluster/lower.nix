@@ -1,23 +1,9 @@
-# Lowers one evaluated `cairn.clusters.<name>` (see ./options.nix) into a clan
-# module: the inventory instances that assign cairn's services to machines,
-# plus the NixOS configuration those machines need.
-#
-# Two rules shape everything below.
-#
-# 1. Settings never hang off tags. clan only reads `roles.<role>.settings` and
-#    `roles.<role>.machines.<n>.settings`; anything nested under `tags` is
-#    silently ignored. So every assignment here is explicit and per-machine,
-#    built with `cairnLib.inventory.mkMachines`. Tags are membership-only, and
-#    only for the consumer's own use.
-#
-# 2. `cluster.cairn.*` options only exist on a machine whose role module
-#    imports modules/service/cluster.nix. Emitting a cluster-wide NixOS value
-#    onto a machine without one is an "option does not exist" error, so each
-#    is scoped to the services that declare it (see `clusterScoped` below).
+# Two rules shape this file.
+# Settings never hang off tags: clan reads only `roles.<role>.settings` and `roles.<role>.machines.<n>.settings` and silently ignores anything under `tags`, so every assignment is per machine.
+# `cluster.cairn.*` options exist only on machines whose role imports modules/service/cluster.nix, so each cluster-wide value is scoped to the services that declare it (`clusterScoped`).
 { lib, cairnLib }:
 {
-  # Attribute name of the cluster, and whether the flake declares more than
-  # one (which turns on instance-name prefixing).
+  # `multi` turns on instance-name prefixing.
   name,
   multi,
 }:
@@ -43,10 +29,7 @@ let
 
   loc = "cairn.clusters.${name}";
 
-  # ─── Validation ──────────────────────────────────────────────────────────
-  # Caught here rather than left to clan's module resolution, which reports a
-  # missing machine as a role-assignment failure several layers removed from
-  # the typo that caused it.
+  # Caught here because clan reports a missing machine as a role-assignment failure several layers from the typo.
 
   checkMachines =
     where: machines:
@@ -59,8 +42,7 @@ let
 
   controlPlane = lib.attrNames (lib.filterAttrs (_: m: m.role == "control-plane") cluster.machines);
 
-  # kubepkgs minor a machine runs: its own pin, else the cluster's, else null
-  # (follow nixpkgs, whose version is unknowable here).
+  # null follows nixpkgs, whose version is unknowable here.
   effectiveVersion =
     m:
     if cluster.machines.${m}.kubernetesVersion != null then
@@ -68,13 +50,10 @@ let
     else
       cluster.versions.kubernetes;
 
-  # The `node-role.kubernetes.io/*` label a machine gets for its role, which
-  # kubelet is forbidden from setting on itself. Merged under the machine's own
-  # `nodeLabels` so an entry there for the same key wins, the way `tags` below
-  # carries the role tag alongside the machine's extras.
+  # kubelet may not set `node-role.kubernetes.io/*` on itself.
+  # Merged under the machine's own `nodeLabels`, so an entry there wins.
   roleLabel = m: { "node-role.kubernetes.io/${m.role}" = ""; };
 
-  # Pods a machine's kubelet admits: its own override, else the cluster's.
   effectiveMaxPods =
     m:
     if cluster.machines.${m}.maxPods != null then
@@ -82,17 +61,12 @@ let
     else
       svc.kubelet.maxPods;
 
-  # Same precedence for the kubelet reservations, which are the figures that
-  # decide how much of a machine the scheduler may hand out. These are the
-  # settings most likely to differ per machine rather than per cluster: a node
-  # carrying a storage daemon or a build agent has to hold memory back that an
-  # otherwise identical node does not.
+  # Per machine, since a node carrying a storage daemon or build agent holds back memory an identical node does not.
   effectiveReservation =
     key: m:
     if cluster.machines.${m}.${key} != null then cluster.machines.${m}.${key} else svc.kubelet.${key};
 
-  # Whether a machine's kubelet runs nix-snapshotter: its own override, else
-  # the cluster's, so nodes can move over one at a time.
+  # Per machine, so nodes can move over one at a time.
   effectiveNixSnapshotter =
     m:
     if cluster.machines.${m}.nixSnapshotter != null then
@@ -104,9 +78,8 @@ let
 
   anyMachinePin = lib.any (m: m.kubernetesVersion != null) (lib.attrValues cluster.machines);
 
-  # Kubernetes' skew policy: a kubelet may run up to three minors behind the
-  # apiserver, never ahead. Only checkable between explicit pins; the
-  # apiserver side is the oldest pinned control-plane machine.
+  # A kubelet may run up to three minors behind the apiserver, never ahead.
+  # Checkable only between explicit pins.
   cpMinors = map minorOf (lib.filter (v: v != null) (map effectiveVersion controlPlane));
   minCpMinor = lib.foldl' lib.min (lib.head cpMinors) cpMinors;
   skewViolations = lib.filter (
@@ -145,16 +118,11 @@ let
           )
       );
 
-  # ─── Inventory ───────────────────────────────────────────────────────────
-
   mkModule = service: {
     name = "@UnstoppableMango/${service}";
     input = cluster.moduleInput;
   };
 
-  # `settingsFn` gets the machine name and returns that machine's settings;
-  # the service's own `settings` escape hatch is merged over the top so it
-  # always wins.
   mkRole = cfg: service: machines: settingsFn: {
     machines = cairnLib.inventory.mkMachines { } (
       genAttrs (checkMachines service machines) (m: settingsFn m // cfg.settings)
@@ -168,9 +136,7 @@ let
 
   machineIp = m: cluster.machines.${m}.ip;
 
-  # Cluster-wide settings several services all forward. `types.str` merges
-  # definitions that agree, so the repetition is deliberate and a disagreement
-  # would be an eval error.
+  # `types.str` merges definitions that agree, so a disagreement between services is an eval error.
   clusterSettings = {
     inherit (cluster) vip clusterName;
   };
@@ -298,8 +264,6 @@ let
     )
     // cluster.extraInstances;
 
-  # ─── NixOS ───────────────────────────────────────────────────────────────
-
   assigned = enable: machines: if enable then machines else [ ];
 
   pkiMachines = assigned svc.pki.enable svc.pki.machines;
@@ -307,13 +271,9 @@ let
   corednsMachines = assigned svc.coredns.enable svc.coredns.machines;
   metricsServerMachines = assigned svc.metrics-server.enable svc.metrics-server.machines;
 
-  # kubelet/common.nix declares `cluster.cairn.kubelet.*`, and the node role
-  # imports it, so this covers every machine running a kubelet.
   kubeletMachines = assigned svc.kubelet.enable svc.kubelet.machines;
 
-  # Machines whose role modules import modules/service/cluster.nix, and so
-  # have `cluster.cairn.apiServerPort` declared. pki/node.nix and
-  # etcd/member.nix deliberately don't, so neither appears here.
+  # pki/node.nix and etcd/member.nix deliberately do not import modules/service/cluster.nix.
   clusterScoped =
     assigned svc.apiserver.enable svc.apiserver.machines
     ++ kubeletMachines
@@ -385,7 +345,6 @@ let
           inherit (svc.kubelet) rootDir containerdRuntimes;
         };
       }
-      # node-exporter runs wherever a kubelet does, as a DaemonSet.
       ++ optional (svc.node-exporter.openFirewall && elem mname kubeletMachines) {
         networking.firewall.allowedTCPPorts = [ svc.node-exporter.port ];
       }

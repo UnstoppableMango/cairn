@@ -2,22 +2,22 @@
 
 ## Repo layout
 
-- `clan.nix` — the flake's clan module registry (`modules."@UnstoppableMango/<name>"`) and (in `perSystem`) the single-node VM test's inventory wiring.
+- `clan.nix`: the flake's clan module registry (`modules."@UnstoppableMango/<name>"`) and (in `perSystem`) the single-node VM test's inventory wiring.
   This is the top-level list of what services exist.
-- `flakeModules/` — the `flake.flakeModules.default` output: a flake-parts module consumer flakes import (`imports = [ inputs.cairn.flakeModules.default ];`).
+- `flakeModules/`: the `flake.flakeModules.default` output: a flake-parts module consumer flakes import (`imports = [ inputs.cairn.flakeModules.default ];`).
   `default.nix` wires in clan-core's flake module and a default `systems` list, so a consumer gets clan without declaring `clan-core` as their own input, and declares the `cairn.clusters.<name>` option tree, which describes a whole cluster in one attrset.
   `cluster/options.nix` declares the surface and `cluster/lower.nix` turns one evaluated cluster into a clan module of `inventory.machines`, `inventory.instances`, and per-machine NixOS config.
   The option tree is inert when unused, so consumers hand-writing an inventory import the same module and leave `cairn.clusters` empty.
-- `modules/service/<name>/` — one clan service per Kubernetes cluster component (`default.nix`, role files, `README.md`).
-- `lib/` — small Nix helper library exposed as `flake.lib`: `kubeconfig.mkKubeconfig` for generating kubeconfig YAML, `options` for option definitions reused across service interfaces (`vip`/`clusterName`, `mkNodes`), `inventory` for inventory-shaped helpers (`mkMachines` merges shared per-role settings across per-machine entries; `nodesOf` turns a role's `machines` into the `mkNodes` shape), and `exports.endpointHosts` for reading another service's `endpoints` export.
-- `modules/service/cluster.nix` — the facts a service needs to reach the apiserver (`cluster.cairn.{vip,apiServerPort,apiServerURL}`), declared once and imported by the role modules that need them.
+- `modules/service/<name>/`: one clan service per Kubernetes cluster component (`default.nix`, role files, `README.md`).
+- `lib/`: small Nix helper library exposed as `flake.lib`: `kubeconfig.mkKubeconfig` for generating kubeconfig YAML, `options` for option definitions reused across service interfaces (`vip`/`clusterName`, `mkNodes`), `inventory` for inventory-shaped helpers (`mkMachines` merges shared per-role settings across per-machine entries; `nodesOf` turns a role's `machines` into the `mkNodes` shape), and `exports.endpointHosts` for reading another service's `endpoints` export.
+- `modules/service/cluster.nix`: the facts a service needs to reach the apiserver (`cluster.cairn.{vip,apiServerPort,apiServerURL}`), declared once and imported by the role modules that need them.
   `modules/service/identity.nix` holds `cluster.cairn.clusterName` on its own, imported by `cluster.nix` and directly by roles that name the cluster without reaching its API, currently etcd.
   `modules/service/etcd-client.nix` declares the etcd client cert shared by the etcd and apiserver roles.
-- `examples/single-node/` — a full, runnable consumer flake (its own `flake.nix` + `inventory.nix`) demonstrating a minimal one-machine cluster with a hand-written inventory (`cairn.clusters` left unset), plus a NixOS VM test (`tests/vm/default.nix`) that boots it and smoke-tests `kubectl`.
-- `examples/ha-cluster/` — the same job done through the option tree: a 5-node HA cluster as one `cairn.clusters.example` value (`cluster.nix`), matching the topology in `docs/USAGE.md`.
+- `examples/single-node/`: a full, runnable consumer flake (its own `flake.nix` + `inventory.nix`) demonstrating a minimal one-machine cluster with a hand-written inventory (`cairn.clusters` left unset), plus a NixOS VM test (`tests/vm/default.nix`) that boots it and smoke-tests `kubectl`.
+- `examples/ha-cluster/`: the same job done through the option tree: a 5-node HA cluster as one `cairn.clusters.example` value (`cluster.nix`), matching the topology in `docs/USAGE.md`.
   The spec lives apart from its `flake.nix` so `checks/flake-module.nix` can evaluate the exact thing the example ships.
-- `docs/USAGE.md` — end-to-end walkthrough for building a multi-machine (5-node HA) consumer flake against cairn, covering both the `cairn.clusters` interface and the hand-written inventory underneath it.
-- `modules/service/AGENTS.md` — the authoritative reference for the clan-service authoring model used throughout `modules/service/`.
+- `docs/USAGE.md`: end-to-end walkthrough for building a multi-machine (5-node HA) consumer flake against cairn, covering both the `cairn.clusters` interface and the hand-written inventory underneath it.
+- `modules/service/AGENTS.md`: the authoritative reference for the clan-service authoring model used throughout `modules/service/`.
   Read this before adding or modifying a service.
 
 ## Clan services model
@@ -30,7 +30,7 @@ Services are intentionally split per-component rather than one monolithic servic
 
 | Service | Roles | Depends on |
 | --- | --- | --- |
-| `pki` | `node` | — (provides the CA; others consume it) |
+| `pki` | `node` | none (provides the CA; others consume it) |
 | `etcd` | `member` | `pki` |
 | `apiserver` | `control-plane` | `pki`, `etcd` (exports), `kubelet` |
 | `kubelet` | `node` | `pki` |

@@ -103,7 +103,6 @@
         perSystem =
           { pkgs, self', ... }:
           let
-            # The services both VM tests boot.
             cairnModules = lib.getAttrs [
               "@UnstoppableMango/pki"
               "@UnstoppableMango/etcd"
@@ -128,8 +127,6 @@
               inherit cairnModules;
             };
 
-            # Pods running straight off the node's nix store and building
-            # through its nix-daemon; see the test for what it settles.
             clan.nixosTests.nix-snapshotter = import ./examples/single-node/tests/nix-snapshotter/default.nix {
               inherit cairnModules;
               inherit (inputs) globset;
@@ -141,8 +138,6 @@
               cairnModules = config.flake.clan.modules;
             };
 
-            # Coverage for the `cairn.clusters` flake-module interface, which
-            # nothing else in CI exercises (see checks/flake-module.nix).
             checks.flake-module = import ./checks/flake-module.nix {
               inherit lib pkgs;
               inherit (inputs) clan-core nixpkgs kubepkgs;
@@ -150,26 +145,18 @@
               cairnModules = config.flake.clan.modules;
             };
 
-            # Coverage for a machine running etcd without the apiserver, and
-            # the reverse, which both examples co-locate (see
-            # checks/split-topology.nix).
             checks.split-topology = import ./checks/split-topology.nix {
               inherit lib pkgs;
               inherit (inputs) clan-core nixpkgs;
               cairnModules = config.flake.clan.modules;
             };
 
-            # Coverage for etcd's `autoJoin` and `removedMembers`, whose root
-            # prefix and endpoint exclusion fail only at runtime (see
-            # checks/etcd-autojoin.nix).
             checks.etcd-autojoin = import ./checks/etcd-autojoin.nix {
               inherit lib pkgs;
               inherit (inputs) clan-core nixpkgs;
               cairnModules = config.flake.clan.modules;
             };
 
-            # Coverage for the hand-authored addon manifests, which the VM
-            # test cannot reach (see checks/addon-manifests.nix).
             checks.addon-manifests = import ./checks/addon-manifests.nix {
               inherit lib pkgs;
             };

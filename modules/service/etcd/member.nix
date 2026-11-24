@@ -18,60 +18,38 @@ let
 
   selfPeerUrl = "https://${cfg.advertiseAddress}:2380";
 
-  # Written by the join and read back by etcd as an `EnvironmentFile`, which
-  # systemd applies after the unit's `Environment=` lines and so wins over the
-  # declarative `initialCluster`. On tmpfs, so a machine that is reinstalled
-  # starts from a fresh join rather than a stale membership.
+  # Read by etcd as an `EnvironmentFile`, which systemd applies after `Environment=`, so it wins over the declarative `initialCluster`.
+  # On tmpfs, so a reinstalled machine starts from a fresh join rather than a stale membership.
   initialClusterEnvFile = "/run/etcd-autojoin.env";
 
-  # Every other member's client URL. The machine's own is useless for joining:
-  # the point is to reach a member that is already in the cluster, and this one
-  # is not serving yet when the join runs.
+  # This machine's own etcd is not serving yet when the join runs.
   joinEndpoints = lib.concatMapStringsSep "," (n: "https://${n.ip}:2379") (
     lib.filter (n: n.ip != cfg.advertiseAddress) cfg.nodes
   );
 
-  # The text tools the scripts below call. systemd's default unit PATH has
-  # grep and coreutils but no awk, so a script that leant on it failed every
-  # parse and read a learner as already voting.
+  # systemd's default unit PATH has no awk, and without it every parse read a learner as already voting.
   scriptTools = with pkgs; [
     coreutils
     gawk
     gnugrep
   ];
 
-  # The units carry the credentials rather than the scripts, so the scripts
-  # close over no clan vars. A var's path only resolves once `clan vars
-  # generate` has run, and a script holding one cannot be built by an
-  # evaluation-only check (see checks/etcd-autojoin.nix).
-  #
-  # `etcd-client-cert` is owned by `kubernetes` and readable by
-  # `cluster.cairn.adminGroup`, while the etcd unit runs as `etcd`, so a unit
-  # reading the key has to run as root.
-  #
-  # No `ETCDCTL_API`: etcdctl speaks only v3, and since 3.6 it warns about the
-  # variable as unrecognised on every call.
+  # The units carry the credentials so the scripts close over no clan vars, whose paths resolve only after `clan vars generate` and would break the evaluation-only checks/etcd-autojoin.nix.
+  # The client key is owned by `kubernetes`, so a unit reading it runs as root.
+  # No `ETCDCTL_API`: etcdctl 3.6 warns about it on every call.
   etcdctlCredentials = {
     ETCDCTL_CACERT = pki.ca.cert;
     ETCDCTL_CERT = pki.certs."etcd-client-cert".cert;
     ETCDCTL_KEY = pki.certs."etcd-client-cert".key;
   };
 
-  # Registers this machine with a running cluster before its etcd starts.
-  #
-  # Joining as a learner rather than a voting member is what makes this safe to
-  # run unattended: a voting member counts toward quorum from the moment it is
-  # added, so adding one to a healthy three-member cluster leaves four members
-  # needing three votes and no failures tolerated until this machine finishes
-  # booting. A learner never counts toward quorum.
+  # Joins as a learner because a voting member counts toward quorum from the moment it is added: a healthy three-member cluster would need three of four votes until this machine finishes booting.
   autoJoinScript = pkgs.writeShellApplication {
     name = "etcd-autojoin";
     runtimeInputs = cfg.tools ++ scriptTools;
     text = ''
-      # An initialised data directory means this machine is already a member and
-      # etcd rejoins on its own. Returning here without contacting anyone is
-      # deliberate: a whole cluster booting at once has no reachable peer yet,
-      # and blocking on one would keep every member down.
+      # Already a member, so etcd rejoins on its own.
+      # No peer is contacted, since a whole cluster booting at once has none reachable yet.
       if [ -d ${lib.escapeShellArg config.services.etcd.dataDir}/member ]; then
         echo "etcd data directory is initialised; nothing to register"
         exit 0
@@ -107,13 +85,8 @@ let
         --peer-urls=${lib.escapeShellArg selfPeerUrl} --learner)
       printf '%s\n' "$added"
 
-      # etcd validates this machine's initial cluster against the membership it
-      # reads back from a peer and refuses to start on a count mismatch
-      # ("member count is unequal", ValidateClusterAndAssignIDs). The
-      # declarative `initialCluster` lists every machine in the inventory, which
-      # is wrong the moment more than one of them has yet to join. `member add`
-      # prints the membership that this machine must actually claim, so take it
-      # from there.
+      # etcd refuses to start when its initial cluster's member count differs from a peer's ("member count is unequal").
+      # The declarative `initialCluster` lists the whole inventory, which is wrong once more than one machine has yet to join, so take the membership `member add` prints.
       initial_cluster=$(printf '%s\n' "$added" | grep '^ETCD_INITIAL_CLUSTER=' || true)
 
       if [ -z "$initial_cluster" ]; then
@@ -121,18 +94,12 @@ let
         exit 1
       fi
 
-      # Peer URLs rather than anything secret, and systemd reads it as root.
       printf '%s\n' "$initial_cluster" > ${lib.escapeShellArg initialClusterEnvFile}
     '';
   };
 
-  # Promotes the learner once its log has caught up. etcd rejects the promotion
-  # until then, so failing and letting systemd retry is the whole mechanism.
-  #
-  # Both calls go to the other members, whose client URLs the unit passes as
-  # the first argument. A learner answers only `Status` and serializable reads,
-  # refusing `MemberList` and `MemberPromote` alike with "rpc not supported for
-  # learner", so asking this machine's own etcd would retry forever.
+  # etcd rejects the promotion until the learner has caught up, so systemd's retry is the mechanism.
+  # The calls go to the other members, since a learner refuses `MemberList` and `MemberPromote` with "rpc not supported for learner".
   promoteScript = pkgs.writeShellApplication {
     name = "etcd-promote";
     runtimeInputs = cfg.tools ++ scriptTools;
@@ -156,14 +123,9 @@ let
     '';
   };
 
-  # Removes the members named in `removedMembers` that are still registered,
-  # and does nothing once none are. Every remaining member runs it, so the first
-  # to get there does the removal and the rest find nothing left to remove.
-  #
-  # The endpoints are the other members' client URLs, passed as the first
-  # argument, for the same reason as the promote: this machine may itself be a
-  # learner, which refuses `MemberList`. A removal that would lose quorum is
-  # refused by etcd itself (`--strict-reconfig-check`, on by default).
+  # Every remaining member runs this, and the first to get there does the removal.
+  # The endpoints are the other members, since this machine may be a learner.
+  # etcd itself refuses a removal that would lose quorum (`--strict-reconfig-check`).
   removeScript = pkgs.writeShellApplication {
     name = "etcd-remove-members";
     runtimeInputs = cfg.tools ++ scriptTools;
@@ -174,9 +136,7 @@ let
       members=$(etcdctl member list)
 
       for name in "$@"; do
-        # `member list` prints `ID, status, name, peer URLs, client URLs,
-        # is learner`. A member added but never started has an empty name and
-        # cannot be matched; `etcdctl member remove <ID>` is the way out there.
+        # A member added but never started has an empty name and cannot be matched here; remove it by ID.
         id=$(printf '%s\n' "$members" | awk -F', ' -v name="$name" '$3 == name { print $1 }')
 
         if [ -z "$id" ]; then
@@ -194,12 +154,8 @@ let
 
   autoJoinEnabled = cfg.autoJoin && cfg.initialClusterState == "existing";
 
-  # etcdctl with the client credentials as defaults rather than as global
-  # environment variables, which `sudo` resets and a non-login shell never
-  # reads. Defaults only: a variable already set wins. The endpoint is left to
-  # etcdctl's own default, 127.0.0.1:2379, which it dials over TLS once a
-  # client cert is set, because etcdctl refuses an `--endpoints` flag
-  # alongside an `ETCDCTL_ENDPOINTS` variable.
+  # Credentials as wrapper defaults rather than global variables, which `sudo` resets and a non-login shell never reads.
+  # No endpoint, since etcdctl refuses `--endpoints` alongside `ETCDCTL_ENDPOINTS`; its default 127.0.0.1:2379 is dialled over TLS once a client cert is set.
   etcdctl = pkgs.symlinkJoin {
     name = "etcd-tools";
     paths = cfg.tools;
@@ -306,12 +262,9 @@ in
     };
 
     services.etcd = {
-      # nixpkgs enables etcd only through the Kubernetes `master` role, which an
-      # etcd-only member does not have.
+      # nixpkgs enables etcd only through the Kubernetes `master` role, which an etcd-only member lacks.
       enable = true;
       inherit (cfg) package;
-      # The inventory machine name is the machine's hostname, so this matches
-      # the name this node is listed under in `initialCluster`.
       name = config.networking.hostName;
       listenClientUrls = [ "https://0.0.0.0:2379" ];
       listenPeerUrls = [ "https://0.0.0.0:2380" ];
@@ -330,16 +283,12 @@ in
       peerTrustedCaFile = pki.ca.cert;
     };
 
-    # The `+` prefix runs the hook as root rather than the unit's `etcd` user,
-    # which cannot read the `kubernetes`-owned client key. Failing here keeps
-    # etcd from starting, which is what should happen when the registration
-    # this machine needs did not land.
+    # `+` runs the hook as root, since the `etcd` user cannot read the client key.
     systemd.services.etcd = lib.mkIf autoJoinEnabled {
       environment = etcdctlCredentials;
       serviceConfig = {
         ExecStartPre = [ "+${lib.getExe autoJoinScript}" ];
-        # Optional: a machine that already holds data skips the join and writes
-        # no file, and etcd ignores `initialCluster` once it has a WAL anyway.
+        # Optional: a machine with data skips the join, and etcd ignores `initialCluster` once it has a WAL.
         EnvironmentFile = "-${initialClusterEnvFile}";
       };
     };
@@ -348,10 +297,7 @@ in
       description = "Promote this etcd learner to a voting member";
       after = [ "etcd.service" ];
       requires = [ "etcd.service" ];
-      # Wanted by etcd as well as the boot target. A joining member's first
-      # start can time out while it fetches the snapshot, which fails this
-      # job's dependency for good; etcd's restart then comes up healthy and,
-      # without this, nothing ever queues the promotion again.
+      # A joining member's first start can time out fetching the snapshot, failing this job's dependency for good, so etcd's restart has to queue it again.
       wantedBy = [
         "multi-user.target"
         "etcd.service"
@@ -359,12 +305,8 @@ in
       environment = etcdctlCredentials;
       serviceConfig = {
         Type = "oneshot";
-        # An argument rather than an `environment` entry, so an evaluation-only
-        # check can read it: `environment` also carries the clan var paths.
+        # An argument rather than `environment`, which carries the clan var paths, so an evaluation-only check can read it.
         ExecStart = "${lib.getExe promoteScript} ${lib.escapeShellArg joinEndpoints}";
-        # etcd rejects the promotion until the learner has caught up, so the
-        # retry is the mechanism rather than a failure path. A separate unit
-        # runs as root already and needs no `+`.
         Restart = "on-failure";
         RestartSec = "15s";
       };
@@ -382,7 +324,7 @@ in
       description = "Remove departed members from the etcd cluster";
       after = [ "etcd.service" ];
       requires = [ "etcd.service" ];
-      # Wanted by etcd too, for the same reason as the promote unit.
+      # Wanted by etcd for the same reason as the promote unit.
       wantedBy = [
         "multi-user.target"
         "etcd.service"
@@ -390,8 +332,6 @@ in
       environment = etcdctlCredentials;
       serviceConfig = {
         Type = "oneshot";
-        # Arguments rather than `environment` entries, for the same reason as
-        # the promote unit's.
         ExecStart = lib.escapeShellArgs (
           [
             (lib.getExe removeScript)
@@ -399,9 +339,7 @@ in
           ]
           ++ cfg.removedMembers
         );
-        # Retried rather than failed for good, since the other members may
-        # still be starting, or etcd may refuse the removal until enough of
-        # them are back to keep quorum.
+        # The other members may still be starting, or etcd may refuse the removal until enough are back for quorum.
         Restart = "on-failure";
         RestartSec = "30s";
       };

@@ -4,7 +4,8 @@ Reference: https://clan.lol/docs/26.05/guides/services/community/
 
 ## What is a Clan Service
 
-A clan service is a Nix module with `_class = "clan.service"` that deploys coordinated NixOS configuration across multiple machines. Unlike plain NixOS modules (under `modules/`), clan services integrate with the clan inventory system for role-based, multi-machine deployment.
+A clan service is a Nix module with `_class = "clan.service"` that deploys coordinated NixOS configuration across multiple machines.
+Unlike plain NixOS modules (under `modules/`), clan services integrate with the clan inventory system for role-based, multi-machine deployment.
 
 Services in this repo live under `modules/service/<name>/` and are registered in `clan.nix`.
 
@@ -35,16 +36,17 @@ Optional manifest fields: `manifest.description`, `manifest.readme` (use `builti
 
 ## Roles
 
-Roles categorize machines by their function within a service. Two common patterns:
+Roles categorize machines by their function within a service.
+Two common patterns:
 
-- **peer** — equivalent machines; can communicate directly (e.g., VPN nodes)
-- **client-server** — hierarchical; clients unlikely to communicate with each other
+- **peer**: equivalent machines; can communicate directly (e.g., VPN nodes)
+- **client-server**: hierarchical; clients unlikely to communicate with each other
 
 Each role has:
 
-- `description` — explains what the role does
-- `interface.options` — configurable settings exposed to inventory
-- `perInstance` — NixOS config applied per-instance-per-machine
+- `description`: explains what the role does
+- `interface.options`: configurable settings exposed to inventory
+- `perInstance`: NixOS config applied per-instance-per-machine
 
 ```nix
 roles.server = {
@@ -84,7 +86,7 @@ perInstance = { instanceName, settings, roles, machine, ... }: {
 perInstance.nixosModule = ./role.nix;
 ```
 
-Prefer `roles.<roleName>.machines.<machineName>.settings` (via the `roles` argument) over `roles.<roleName>.settings` when you need a specific machine's settings — the latter is deprecated and will be removed.
+Prefer `roles.<roleName>.machines.<machineName>.settings` (via the `roles` argument) over `roles.<roleName>.settings` when you need a specific machine's settings; the latter is deprecated and will be removed.
 
 ## Registration in clan.nix
 
@@ -103,7 +105,8 @@ Prefer `roles.<roleName>.machines.<machineName>.settings` (via the `roles` argum
 }
 ```
 
-`module.input` defaults to `null` (looked up among clan-core's built-in modules) if omitted. For local modules, always set `module.input = "self"`.
+`module.input` defaults to `null` (looked up among clan-core's built-in modules) if omitted.
+For local modules, always set `module.input = "self"`.
 
 ## Tags
 
@@ -146,7 +149,8 @@ perInstance = { settings, ... }: {
 };
 ```
 
-Declare each setting **once**. A setting that appears both in a role's `interface` and as an option of the role's NixOS module goes in `modules/service/<name>/options.nix` (`{ lib }: { <name> = lib.mkOption { ... }; }`), consumed from both sides:
+Declare each setting **once**.
+A setting that appears both in a role's `interface` and as an option of the role's NixOS module goes in `modules/service/<name>/options.nix` (`{ lib }: { <name> = lib.mkOption { ... }; }`), consumed from both sides:
 
 ```nix
 # default.nix
@@ -171,7 +175,8 @@ perInstance = { extendSettings, ... }: {
 
 ## Vars (Secrets & Generated Config)
 
-Vars live in `clan.core.vars.generators.<name>` inside a NixOS module. They generate secrets/files on demand.
+Vars live in `clan.core.vars.generators.<name>` inside a NixOS module.
+They generate secrets/files on demand.
 
 ```nix
 # In a nixosModule:
@@ -196,11 +201,13 @@ Vars live in `clan.core.vars.generators.<name>` inside a NixOS module. They gene
 }
 ```
 
-Run `clan vars generate` to execute generators. Secret files deploy to `/run/secrets/`, public files go to the nix store.
+Run `clan vars generate` to execute generators.
+Secret files deploy to `/run/secrets/`, public files go to the nix store.
 
 ## Exports (Cross-Machine Data Sharing)
 
-Exports share structured data between machines/instances. Experimental but available.
+Exports share structured data between machines/instances.
+Experimental but available.
 Declare what a service produces/consumes via `manifest.exports.out`/`manifest.exports.inputs` (list of export-module names, e.g. `[ "networking" "peer" ]`).
 
 ```nix
@@ -224,8 +231,9 @@ Declare what a service produces/consumes via `manifest.exports.out`/`manifest.ex
 }
 ```
 
-- `clanLib.getExport { serviceName?, instanceName?, roleName?, machineName? } exports` — fetch a single export by scope; throws if it isn't found.
-- `clanLib.selectExports (scope: scope.serviceName == "myservice") exports` — filter exports with a **predicate function** over `{ serviceName, instanceName, roleName, machineName }` (all present as `""` when not part of the scope). `selectExports (_: true) exports` returns everything.
+- `clanLib.getExport { serviceName?, instanceName?, roleName?, machineName? } exports`: fetch a single export by scope; throws if it isn't found.
+- `clanLib.selectExports (scope: scope.serviceName == "myservice") exports`: filter exports with a **predicate function** over `{ serviceName, instanceName, roleName, machineName }` (all present as `""` when not part of the scope).
+  `selectExports (_: true) exports` returns everything.
 
 ## File Splitting Pattern
 
@@ -263,7 +271,7 @@ modules/service/myservice/
 When a service needs something the module system won't hand it (a flake input, `cairnLib`), use `importApply`:
 
 ```nix
-# flake.nix — the one place that touches `inputs`
+# flake.nix: the one place that touches `inputs`
 clan.imports = [
   (lib.modules.importApply ./clan.nix {
     inherit cairnLib;
@@ -271,7 +279,7 @@ clan.imports = [
   })
 ];
 
-# clan.nix — receives them by closure, forwards them the same way
+# clan.nix: receives them by closure, forwards them the same way
 { cairnLib, someInput }:
 { lib, ... }:
 {
@@ -304,10 +312,8 @@ See `checks/consumer-services.nix`.
 
 ## Existing Services in This Repo
 
-The cairn cluster is composed from these per-component services rather than
-one monolithic service. See each service's own `README.md` for what it owns
-and which other services it depends on being co-assigned to the same
-machine.
+The cairn cluster is composed from these per-component services rather than one monolithic service.
+See each service's own `README.md` for what it owns and which other services it depends on being co-assigned to the same machine.
 
 | Module | Roles | Notes |
 |--------|-------|-------|
@@ -330,5 +336,6 @@ machine.
 1. Register in `clan.nix`: `modules."@UnstoppableMango/<name>" = import ./modules/service/<name>;`
 1. Add inventory instance in `clan.nix` with `module.input = "self"` and role assignments
 1. Tag machines appropriately in `inventory.machines` or list them explicitly
-1. Expose it through the flake module: a `services.<name>` block in `flakeModules/cluster/options.nix` and the matching instance in `flakeModules/cluster/lower.nix`. The same applies when adding an option to an existing service; consumers configure cairn through `cairn.clusters`, so a setting that isn't there is only reachable via the `settings` escape hatch
+1. Expose it through the flake module: a `services.<name>` block in `flakeModules/cluster/options.nix` and the matching instance in `flakeModules/cluster/lower.nix`.
+   The same applies when adding an option to an existing service; consumers configure cairn through `cairn.clusters`, so a setting that isn't there is only reachable via the `settings` escape hatch
 1. Run `make check` to verify

@@ -3,8 +3,8 @@
 ## Commands
 
 ```sh
-make check     # nix flake check — evaluates the flake and runs the NixOS VM test
-make format    # nix fmt — formats via treefmt (nixfmt, mdformat, yamlfmt, jsonfmt, mbake)
+make check     # nix flake check: evaluates the flake and runs the NixOS VM test
+make format    # nix fmt: formats via treefmt (nixfmt, mdformat, yamlfmt, jsonfmt, mbake)
 make update    # nix flake update
 ```
 

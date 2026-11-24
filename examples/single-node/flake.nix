@@ -12,10 +12,7 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ cairn.flakeModules.default ];
 
-      # This example deliberately leaves `cairn.clusters` unset and writes its
-      # `inventory.instances` out by hand (./inventory.nix) to show the
-      # low-level path. examples/ha-cluster shows the same job done through
-      # the `cairn.clusters` options.
+      # Hand-written `inventory.instances`, to show the low-level path; examples/ha-cluster uses `cairn.clusters`.
       clan = {
         imports = [ (import ./inventory.nix { }) ];
 
@@ -27,10 +24,7 @@
           };
           boot.loader.grub.device = "/dev/sda";
 
-          # A control-plane-only node (services.kubernetes.roles = ["master"])
-          # is tainted and unschedulable by nixpkgs' kubernetes module unless
-          # "node" is also in roles. There's no separate worker machine here,
-          # so add it directly so pods can actually schedule onto node1.
+          # nixpkgs taints a master-only node unschedulable, and there is no separate worker here.
           services.kubernetes.roles = [ "node" ];
         };
       };

@@ -14,11 +14,7 @@
     imports = [
       (import ../../inventory.nix {
         moduleInput = "self";
-        # The test VM's own address on vlan 1, which the NixOS test
-        # framework assigns as 192.168.<vlan>.<nodeNumber>. Not 127.0.0.1:
-        # the apiserver refuses to advertise an address in the loopback
-        # range when the endpoint reconciler maintains the kubernetes
-        # service endpoints, which is the default.
+        # Not 127.0.0.1: the apiserver refuses to advertise a loopback address while the endpoint reconciler maintains the kubernetes service.
         ip = "192.168.1.1";
       })
     ];
@@ -26,14 +22,8 @@
     machines.node1 =
       { pkgs, ... }:
       let
-        # Throwaway root and intermediate, generated at eval time so the pki
-        # service's interactive CA prompt (clan vars generate) never fires in
-        # the test. The intermediate is the cluster CA and the root is its
-        # chain, the shape of a cluster CA issued by an organisation root.
-        # Set here (clan.machines.node1) rather than on the nixosTest's
-        # `nodes.node1` because vars/generators are computed from
-        # clanInternals.machines (fed by clan.machines), a separate
-        # evaluation from the nixosTest node config.
+        # Generated at eval time so the CA prompt never fires, with the intermediate as cluster CA, the shape of one issued by an organisation root.
+        # Set on clan.machines rather than the nixosTest's `nodes.node1`, because vars are computed from clanInternals.machines, a separate evaluation.
         testCa =
           pkgs.runCommand "single-node-test-ca"
             {
@@ -68,9 +58,7 @@
   nodes.node1 =
     { pkgs, ... }:
     let
-      # busybox linked into /bin so the test script can exec tools inside the
-      # container by a path that does not depend on a store path, which the
-      # test script cannot interpolate from here anyway.
+      # busybox in /bin, since the test script cannot interpolate a store path from here.
       smokeTestImage = pkgs.dockerTools.buildImage {
         name = "smoke-test";
         tag = "test";
@@ -90,19 +78,13 @@
 
       environment.systemPackages = [ pkgs.openssl ];
 
-      # A wheel member, the default `cluster.cairn.adminGroup`, for checking
-      # that etcdctl and kubectl work for someone other than root.
+      # Checks etcdctl and kubectl work for someone other than root.
       users.users.admin = {
         isNormalUser = true;
         extraGroups = [ "wheel" ];
       };
 
-      # The seeded images (coredns, metrics-server, the pause shim and this
-      # test's own) land in containerd's store on the VM's writable disk. The
-      # NixOS test default is small enough that kubelet's image garbage
-      # collector crosses its disk-usage threshold and deletes the seeded
-      # images, which then cannot be re-pulled: every pod fails with
-      # ErrImageNeverPull long after the import succeeded.
+      # On the test default disk, kubelet's image GC crosses its threshold and deletes the seeded images, which cannot be re-pulled, so pods fail with ErrImageNeverPull.
       virtualisation.diskSize = 8192;
       virtualisation.memorySize = 4096;
     };
@@ -118,18 +100,14 @@
     node1.wait_until_succeeds("kubectl get --raw=/healthz")
     node1.wait_until_succeeds("kubectl get nodes | grep -q ' Ready'")
 
-    # etcdctl and kubectl need no flags or environment: sudo resets the
-    # environment, and the admin user reaches the keys through its group.
-    # `--endpoints` has to work alongside the defaults, since etcdctl refuses
-    # a flag that duplicates an ETCDCTL_* variable.
+    # sudo resets the environment, so this proves the wrapper defaults; `--endpoints` must work beside them, since etcdctl refuses a flag duplicating an ETCDCTL_* variable.
     node1.succeed("sudo -u admin etcdctl endpoint health")
     node1.succeed("sudo -u admin etcdctl --endpoints=https://192.168.1.1:2379 member list")
     node1.succeed("sudo -u admin kubectl get nodes")
     node1.succeed("env -i HOME=/root /run/current-system/sw/bin/etcdctl endpoint health")
     node1.succeed("env -i HOME=/root /run/current-system/sw/bin/kubectl get nodes")
 
-    # The bundle pods trust verifies the apiserver under OpenSSL, which,
-    # unlike Go, rejects a trust bundle that stops at an intermediate.
+    # OpenSSL, unlike Go, rejects a trust bundle that stops at an intermediate.
     node1.wait_until_succeeds(
         "kubectl get configmap kube-root-ca.crt -o jsonpath='{.data.ca\\.crt}'"
         " > /tmp/kube-root-ca.crt"
@@ -139,16 +117,8 @@
         " -verify_return_error </dev/null"
     )
 
-    # No trailing command override: the image's own Cmd already runs sleep by
-    # absolute path. Overriding it with a bare "sleep" here would fail to
-    # exec, since the container has no $PATH to resolve it against, which is
-    # also why the exec below spells out /bin/nslookup.
-    #
-    # wait_until_succeeds, not succeed: node Ready doesn't imply the
-    # controller-manager has finished creating the default namespace's
-    # default ServiceAccount yet, so the first attempt can race it and fail
-    # with "serviceaccount default not found". A failed `kubectl run` creates
-    # no pod, so retrying is safe.
+    # No command override: the container has no $PATH to resolve a bare "sleep", which is also why the exec spells out /bin/nslookup.
+    # Retried because node Ready does not imply the default ServiceAccount exists yet; a failed `kubectl run` creates no pod.
     node1.wait_until_succeeds(
         "kubectl run smoke-test --image=smoke-test:test --image-pull-policy=Never"
         " --restart=Never"
@@ -162,19 +132,12 @@
         " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"
     )
 
-    # Cluster DNS end to end, not just a ready Deployment: the pod's
-    # resolver, the kube-dns ClusterIP, kube-proxy's rule for it, and
-    # CoreDNS' answer for an in-cluster Service all have to line up.
     node1.wait_until_succeeds(
         "kubectl exec smoke-test -- /bin/nslookup"
         " kubernetes.default.svc.cluster.local"
     )
 
-    # metrics-server: the Deployment lands on the node whose image was
-    # seeded, the aggregation layer routes the Metrics API to it, and a
-    # scrape of the local kubelet succeeds over TLS verified against the
-    # cluster CA. `kubectl top` is the only one of the three that proves the
-    # scrape itself worked.
+    # Only `kubectl top` proves the kubelet scrape itself worked.
     node1.wait_until_succeeds(
         "kubectl -n kube-system get deployment metrics-server"
         " -o jsonpath='{.status.readyReplicas}' | grep -q '^[1-9]'"

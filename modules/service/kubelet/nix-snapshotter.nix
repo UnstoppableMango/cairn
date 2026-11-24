@@ -50,9 +50,7 @@ in
       };
     };
 
-    # containerd is configured for the `nix` snapshotter, so without it every
-    # image operation fails. Requiring it keeps containerd from starting
-    # half-working; `before` and `partOf` alone only order and restart them.
+    # Required rather than just ordered, so containerd does not start half-working without its snapshotter.
     systemd.services.containerd = {
       requires = [ "nix-snapshotter.service" ];
       after = [ "nix-snapshotter.service" ];
@@ -69,12 +67,8 @@ in
       proxy_plugins.nix = {
         type = "snapshot";
         address = socket;
-        # nix-snapshotter does not advertise remap-ids, so for a
-        # user-namespaced pod containerd falls back to chowning the whole
-        # snapshot, which fails on the read-only store bind mounts. Declared
-        # here, containerd passes the id mapping instead; store paths that
-        # stay unmapped read as the overflow uid, which a read-only store
-        # does not mind.
+        # nix-snapshotter does not advertise remap-ids, so containerd would chown the whole snapshot, which fails on the read-only store mounts.
+        # Unmapped store paths read as the overflow uid, which a read-only store does not mind.
         capabilities = [ "remap-ids" ];
       };
     };

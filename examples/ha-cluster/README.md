@@ -2,8 +2,8 @@
 
 A five-machine HA Kubernetes cluster (three control-plane, two workers, one floating VIP) declared through cairn's `cairn.clusters` flake-module interface.
 
-- [`cluster.nix`](./cluster.nix) — the whole cluster in one attrset: machines, their roles and IPs, and the services that deviate from the defaults.
-- [`flake.nix`](./flake.nix) — imports `cairn.flakeModules.default` and assigns the spec to `cairn.clusters.example`.
+- [`cluster.nix`](./cluster.nix): the whole cluster in one attrset: machines, their roles and IPs, and the services that deviate from the defaults.
+- [`flake.nix`](./flake.nix): imports `cairn.flakeModules.default` and assigns the spec to `cairn.clusters.example`.
 
 Everything not mentioned in `cluster.nix` comes from the defaults: pki, etcd, apiserver, kubelet, network, kubeconfig, inoculant and coredns are all deployed, each to the machines its role implies.
 
